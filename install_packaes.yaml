@@ -10,9 +10,22 @@
       apt:
         name:
           - git
-          - docker-compose
           - python3-pip
           - cockpit
           - cockpit-machines
           - cockpit-storaged 
         state: present
+    - name: Install Docker packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin  # This is the modern way to get 'docker compose'
+        state: present  
+    - name: Check cockpit before starting
+      systemd:
+        name: cockpit
+        state: started
+        enabled: yes
+        check_mode: yes
