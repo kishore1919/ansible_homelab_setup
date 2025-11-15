@@ -1,3 +1,8 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # vars file for kvm_setup
+
+
+kvm_image_url: "https://releases.ubuntu.com/jammy/ubuntu-22.04.5-live-server-amd64.iso"
+kvm_image_pool: "/var/lib/libvirt/images/"
+kvm_image_name: "kvm-image.qcow2"
