@@ -1,0 +1,22 @@
+---
+# Configure Docker
+# This role is meant to be used with the basic_setup role
+# It will configure docker compose files and bring up the stacks
+
+- name: create target directory
+  file:
+    path: "{{ basic_setup_compose_dir }}"
+    state: directory
+
+- name: copy docker compose files
+  copy:
+    src: "{{ basic_setup_compose_src }}/{{ item }}"
+    dest: "{{ basic_setup_compose_dir }}/{{ item }}"
+  loop: "{{ basic_setup_compose_files }}"
+
+- name: bring up docker compose stacks
+  community.docker.docker_compose_v2:
+    project_src: "{{ basic_setup_compose_dir }}"
+    files: "{{ item }}"
+    state: present
+  loop: "{{ basic_setup_compose_files }}"
