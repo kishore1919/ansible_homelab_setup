@@ -1,0 +1,67 @@
+<!--
+  Minimal libvirt domain xml template.
+  Variables available:
+    vm_name, vm_ram_mb, vm_vcpus, vm_disk_path, iso_path, network_name, cpu_model
+-->
+<domain type='kvm'>
+  <name>{{ vm_name }}</name>
+  <memory unit='MiB'>{{ vm_ram_mb }}</memory>
+  <currentMemory unit='MiB'>{{ vm_ram_mb }}</currentMemory>
+  <vcpu placement='static'>{{ vm_vcpus }}</vcpu>
+
+  <os>
+    <type arch='x86_64' machine='pc-q35-6.2'>hvm</type>
+    <!-- Boot order: try cdrom then hd -->
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+  </os>
+
+  <features>
+    <acpi/>
+    <apic/>
+    <vmport state='off'/>
+  </features>
+
+  <cpu mode='{{ cpu_model }}'/>
+  <clock offset='utc'/>
+
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+
+  <devices>
+    <!-- Main disk -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none'/>
+      <source file='{{ vm_disk_path }}'/>
+      <target dev='vda' bus='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+    </disk>
+
+    <!-- CD-ROM with the ISO (installer) -->
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='{{ iso_path }}'/>
+      <target dev='hda' bus='ide'/>
+      <readonly/>
+    </disk>
+
+    <!-- Network interface: libvirt network -->
+    <interface type='network'>
+      <source network='{{ network_name }}'/>
+      <model type='virtio'/>
+    </interface>
+
+    <!-- Console for serial output -->
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+
+    <!-- Serial and graphics (headless) -->
+    <serial type='pty'>
+      <target port='0'/>
+    </serial>
+
+    <graphics type='vnc' port='-1' listen='127.0.0.1' autoport='yes' />
+  </devices>
+</domain>

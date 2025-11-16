@@ -1,3 +1,72 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# tasks file for kvm_setup
+- name: Create multiple KVM VMs using community.libvirt.virt
+  hosts: localhost
+  gather_facts: false
+  become: true
+  collections:
+    - community.libvirt
+
+  tasks:
+    - name: Ensure image pool dir exists
+      file:
+        path: "{{ kvm_image_pool }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Download ISO image (idempotent)
+      get_url:
+        url: "{{ kvm_image_url }}"
+        dest: "{{ (kvm_image_pool.rstrip('/')) + '/' + (kvm_image_url | basename) }}"
+        mode: '0644'
+      register: download_iso
+
+    - name: Build VM index list
+      set_fact:
+        vm_indices: "{{ range(1, (kvm_vms_counts | int) + 1) | list }}"
+
+    - name: Create qcow2 disks (one per VM) and define/start VMs using libvirt XML
+      loop: "{{ vm_indices }}"
+      loop_control:
+        loop_var: vm_idx
+        label: "{{ base_image_name }}{{ vm_idx }}"
+      block:
+        - name: Compose names and paths
+          set_fact:
+            vm_name: "{{ base_image_name }}{{ vm_idx }}"
+            vm_disk_path: "{{ (kvm_image_pool.rstrip('/')) + '/' + base_image_name + vm_idx|string + '.qcow2' }}"
+            iso_path: "{{ (kvm_image_pool.rstrip('/')) + '/' + (kvm_image_url | basename) }}"
+
+        - name: Create qcow2 disk if missing
+          command: >
+            qemu-img create -f qcow2 {{ vm_disk_path }} {{ vm_disk_size }}
+          args:
+            creates: "{{ vm_disk_path }}"
+
+        - name: Render and define domain from template (define only)
+          community.libvirt.virt:
+            command: define
+            xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
+          register: define_result
+
+        - name: Start the VM (ensure running)
+          community.libvirt.virt:
+            name: "{{ vm_name }}"
+            state: running
+            autostart: true
+          register: start_result
+
+      rescue:
+        - name: Debug block failure
+          debug:
+            msg: "Failed creating/defining/starting {{ vm_name }}; check previous task output."
+
+    - name: List all libvirt domains (for info)
+      community.libvirt.virt:
+        command: list_vms
+      register: all_vms
+
+    - name: Show created VMs
+      debug:
+        var: all_vms.list_vms

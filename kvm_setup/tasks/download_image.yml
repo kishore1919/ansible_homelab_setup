@@ -1,5 +1,0 @@
----
-- name: Download the kvm image
-  get_url:
-    url: "https://releases.ubuntu.com/jammy/ubuntu-22.04.5-live-server-amd64.iso"
-    dest: "/var/lib/libvirt/images/kvm-image.qcow2"

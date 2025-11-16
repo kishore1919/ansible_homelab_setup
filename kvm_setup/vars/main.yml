@@ -4,5 +4,12 @@
 
 
 kvm_image_url: "https://releases.ubuntu.com/jammy/ubuntu-22.04.5-live-server-amd64.iso"
-kvm_image_pool: "/var/lib/libvirt/images/"
-kvm_image_name: "kvm-image.qcow2"
+kvm_image_pool: "/var/lib/libvirt/images"
+base_image_name: "ubuntu-server-"
+kvm_vms_counts: 4
+vm_ram_mb: 2048          # adjust RAM per VM
+vm_vcpus: 2              # adjust vCPU per VM
+vm_disk_size: "20G"      # size for created qcow2 disks
+os_variant: "ubuntu22.04" # for virt-install --os-variant (optional)
+network: "default"       # libvirt network to attach
+cpu_model: "host-passthrough"  # adjust if needed
