@@ -1,3 +1,8 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # vars file for basic_setup
+basic_setup_compose_src: "{{ role_path }}/files"
+basic_setup_compose_dir: /home/compose_file
+basic_setup_compose_files:
+  - sonarqube-docker-compose.yml
+  - n8n-docker-compose.yml

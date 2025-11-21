@@ -4,12 +4,12 @@
 # It will configure docker compose files and bring up the stacks
 
 - name: create target directory
-  file:
+  ansible.inbuilt.file:
     path: "{{ basic_setup_compose_dir }}"
     state: directory
 
 - name: copy docker compose files
-  copy:
+  ansible.inbuilt.copy:
     src: "{{ basic_setup_compose_src }}/{{ item }}"
     dest: "{{ basic_setup_compose_dir }}/{{ item }}"
   loop: "{{ basic_setup_compose_files }}"

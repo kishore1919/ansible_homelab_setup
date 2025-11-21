@@ -4,10 +4,10 @@
   become: yes
   tasks:
     - name: apt update
-      apt:
+      ansible.builtin.apt:
         update_cache: yes
     - name: Install packages
-      apt:
+      ansible.builtin.apt:
         name:
           - git
           - python3-pip
@@ -16,7 +16,7 @@
           - cockpit-storaged 
         state: present
     - name: Install Docker packages
-      apt:
+      ansible.builtin.apt:
         name:
           - docker-ce
           - docker-ce-cli
