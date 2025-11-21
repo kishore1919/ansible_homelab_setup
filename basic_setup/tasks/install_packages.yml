@@ -1,29 +1,49 @@
 ---
-- name: Install required packages on remote server
-  hosts: aws_server
-  tasks:
-    - name: apt update
-      ansible.builtin.apt:
-        update_cache: yes
-    - name: Install packages
-      ansible.builtin.apt:
-        name:
-          - git
-          - python3-pip
-          - cockpit
-          - cockpit-machines
-          - cockpit-storaged 
-        state: present
-    - name: Install Docker packages
-      ansible.builtin.apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-compose-plugin  # This is the modern way to get 'docker compose'
-        state: present  
-    - name: Start cockpit service
-      systemd:
-        name: cockpit
-        state: started
-        enabled: yes
+- name: apt update
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - git
+      - python3-pip
+      - cockpit
+      - cockpit-machines
+      - cockpit-storaged
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+
+- name: Add Docker GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+- name: apt update after Docker repo
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install Docker packages
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+
+- name: Start cockpit service
+  ansible.builtin.systemd:
+    name: cockpit
+    state: started
+    enabled: yes

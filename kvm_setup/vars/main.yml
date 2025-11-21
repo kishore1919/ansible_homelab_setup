@@ -3,11 +3,11 @@
 # vars file for kvm_setup
 
 
-kvm_image_url: "https://releases.ubuntu.com/jammy/ubuntu-22.04.5-live-server-amd64.iso"
+kvm_image_url: "https://cloud-images.ubuntu.com/jammy/current/{{ base_image_name }}.img"
+base_image_name: "jammy-server-cloudimg-amd64"
+kvm_image_checksum: "sha256:4f5dacb9879810e5dd25b64299a8965843792e4e3e0b0a4f0a5e4b0c5d6e7f8901"  # Update from SHA256SUMS
 kvm_image_pool: "/var/lib/libvirt/images"
-base_image_name: "ubuntu-server-22.04" # base image name without extension
 kvm_vm_name: "ubuntu-server-vm" # base name for VMs
-kvm_vms_counts: 1
 vm_ram_mb: 2048          # adjust RAM per VM
 vm_vcpus: 2              # adjust vCPU per VM
 vm_disk_size: "20G"      # size for created qcow2 disks

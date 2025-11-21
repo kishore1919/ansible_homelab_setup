@@ -7,21 +7,21 @@ Deploys a full homelab on Ubuntu: Docker stacks (SonarQube, n8n) via `basic_setu
 - Ansible 2.14+ with `ansible-galaxy collection install community.libvirt community.docker`.
 - Root/sudo access (`become: yes`).
 - For KVM: `apt install libvirt-daemon-system qemu-utils virtinst bridge-utils` (add to basic_setup if needed).
-- Inventory file (e.g. `inventory.ini`) with target host(s).
+- Inventory file (e.g. `inventory.ini`) with `all` and `gcp_workers` groups.
 
 ## Usage
 ```bash
 ansible-playbook -i inventory.ini main.yml
 ```
 - Runs `basic_setup`: installs Docker/cockpit-machines/python3-pip/git, deploys stacks to `/home/compose_file`.
-- Runs `kvm_setup`: downloads Ubuntu 22.04 ISO to `/var/lib/libvirt/images`, creates `kvm_vms_counts` VMs (e.g. `ubuntu-server-22.04-1.qcow2`).
+- Runs `kvm_setup`: downloads Ubuntu 22.04 cloud image to `/var/lib/libvirt/images`, creates `kvm_vms_counts` VMs (e.g. `ubuntu-server-vm-01` etc., login ubuntu/ubuntu).
 
 ## Customization
 - Edit `basic_setup/files/*.yml` for stacks (set `N8N_HOST`/`WEBHOOK_URL` to VM IP).
 - Override vars in playbook: `roles: - { role: kvm_setup, kvm_vms_counts: 4, vm_ram_mb: 4096 }`.
-- Access: Cockpit at `https://<vm-ip>:9090` (machines tab for KVM), SonarQube `http://<vm-ip>:9000`, n8n `http://<vm-ip>:5678`.
+- Access: Cockpit `https://<host-ip>:9090` (KVM machines), SonarQube `http://<host-ip>:9000`, n8n `http://<host-ip>:5678`.
+- VMs on `default` network (192.168.122.0/24), `ssh ubuntu@<vm-ip>` (passwd: ubuntu), Cockpit console.
 
 ## Notes
 - KVM images are qcow2 clones from ISO (use `virsh start <name>` or cockpit).
-- Idempotent: re-runs skip existing images/VMs.
-- Edit `kvm_setup/vars/main.yml` for VM specs.
+- Idempotent: skips existing VMs/images.
