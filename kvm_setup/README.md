@@ -1,38 +1,35 @@
-Role Name
-=========
+# KVM Setup Role
 
-A brief description of the role goes here.
+Creates multiple KVM VMs from Ubuntu ISO in `/var/lib/libvirt/images`.
 
-Requirements
-------------
+## Requirements
+- libvirt-daemon-system, qemu-utils, virtinst.
+- `community.libvirt` collection.
+- `become: yes`.
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+## Role Variables
+From `vars/main.yml` (high priority, override in playbook):
+- `kvm_image_url`: ISO download URL.
+- `kvm_image_pool`: `/var/lib/libvirt/images`.
+- `base_image_name`: `ubuntu-server-22.04` (VM prefix).
+- `kvm_vms_counts`: Number of VMs (1-10 typical).
+- `vm_ram_mb`: 2048, `vm_vcpus`: 2, `vm_disk_size`: "20G".
+- `os_variant`: "ubuntu22.04", `network`: "default".
 
-Role Variables
---------------
+Defaults in `defaults/main.yml`.
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+## Dependencies
+- None.
 
-Dependencies
-------------
+## Example Playbook
+```yaml
+- hosts: kvm_hosts
+  become: yes
+  roles:
+    - role: kvm_setup
+      kvm_vms_counts: 3
+      vm_ram_mb: 4096
+```
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
-
-Example Playbook
-----------------
-
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
-
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
-
-License
--------
-
-BSD
-
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+## License
+MIT-0

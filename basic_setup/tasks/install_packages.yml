@@ -1,7 +1,6 @@
 ---
 - name: Install required packages on remote server
   hosts: aws_server
-  become: yes
   tasks:
     - name: apt update
       ansible.builtin.apt:

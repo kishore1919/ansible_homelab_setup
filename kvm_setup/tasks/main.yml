@@ -1,6 +1,5 @@
 ---
 - name: Create multiple KVM VMs using community.libvirt.virt
-  hosts: localhost
   collections:
     - community.libvirt
 

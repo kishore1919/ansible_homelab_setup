@@ -26,4 +26,3 @@ basic_setup_ntp_servers:
 basic_setup_allow_passwordless_sudo: false
 
 # Compose source directory
-become: yes

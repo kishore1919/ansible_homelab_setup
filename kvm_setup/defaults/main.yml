@@ -3,4 +3,3 @@
 # defaults file for kvm_setup
 
 kvm_image_pool: "/var/lib/libvirt/images"
-ansible_become: true
