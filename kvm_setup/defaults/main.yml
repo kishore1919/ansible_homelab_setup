@@ -1,5 +1,25 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# defaults file for kvm_setup
+# defaults file for basic_setup
 
-kvm_image_pool: "/var/lib/libvirt/images"
+# Default users to create - list of dicts with name, uid, groups, state etc.
+basic_setup_users: []
+
+# Default packages to ensure present (apt/yum module will use this list)
+basic_setup_packages: []
+
+# Default timezone, e.g. "UTC" or "Europe/London"
+basic_setup_timezone: "UTC"
+
+# SSH management toggles
+basic_setup_enable_ssh: true
+basic_setup_ssh_port: 22
+
+# Firewall management toggle (false by default so role doesn't require firewall packages)
+basic_setup_manage_firewall: false
+
+# Add NTP servers so tidy role can ensure time sync works out of the box
+basic_setup_ntp_servers:
+  - pool.ntp.org
+
+# Ensure sudoers or passwordless sudo setting can be toggled
+basic_setup_allow_passwordless_sudo: false

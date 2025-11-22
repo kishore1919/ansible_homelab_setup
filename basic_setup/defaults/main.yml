@@ -24,10 +24,3 @@ basic_setup_ntp_servers:
 
 # Ensure sudoers or passwordless sudo setting can be toggled
 basic_setup_allow_passwordless_sudo: false
-
-# Compose source directory
-basic_setup_compose_src: "{{ role_path }}/files"
-basic_setup_compose_dir: /home/compose_file
-basic_setup_compose_files:
-  - sonarqube-docker-compose.yml
-  - n8n-docker-compose.yml
