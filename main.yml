@@ -1,5 +1,4 @@
 ---
-
 - name: Basic Setup Role
   hosts: all
   become: yes
@@ -9,5 +8,7 @@
 - name: KVM Setup Role
   hosts: gcp_workers
   become: yes
+  collections:
+    - community.libvirt
   roles:
     - kvm_setup

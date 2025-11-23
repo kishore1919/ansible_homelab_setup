@@ -1,16 +1,33 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# vars file for kvm_setup
-
-
-kvm_image_url: "https://cloud-images.ubuntu.com/jammy/current/{{ base_image_name }}.img"
-base_image_name: "jammy-server-cloudimg-amd64"
-kvm_image_checksum: "sha256:4f5dacb9879810e5dd25b64299a8965843792e4e3e0b0a4f0a5e4b0c5d6e7f8901"  # Update from SHA256SUMS
 kvm_image_pool: "/var/lib/libvirt/images"
-kvm_vm_name: "ubuntu-server-vm" # base name for VMs
-vm_ram_mb: 2048          # adjust RAM per VM
-vm_vcpus: 2              # adjust vCPU per VM
-vm_disk_size: "20G"      # size for created qcow2 disks
-os_variant: "ubuntu22.04" # for virt-install --os-variant (optional)
-network: "default"       # libvirt network to attach
-cpu_model: "host-passthrough"  # adjust if needed
+base_image_name: "jammy-server-cloudimg-amd64"
+kvm_image_url: "https://cloud-images.ubuntu.com/jammy/current/{{ base_image_name }}.img"
+kvm_image_checksum: "sha256:CHANGE_ME"
+kvm_vm_name: "ubuntu-server-vm"
+vm_ram_mb: 2048
+vm_vcpus: 2
+vm_disk_size: "20G"
+os_variant: "ubuntu22.04"
+network: "default"
+cpu_model: "host-passthrough"
+
+
+user_data:
+  #cloud-config
+  users:
+    - name: ubuntu
+      sudo: ALL=(ALL) NOPASSWD:ALL
+      groups: sudo
+      shell: /bin/bash
+  chpasswd:
+    list: |
+      ubuntu: "{{ user_password | default('ubuntu') }}"
+    expire: False
+  package_update: true
+  packages:
+    - qemu-guest-agent
+  ssh_pwauth: true
+
+meta_data:
+  instance-id: "{{ kvm_vm_name }}"
+  local-hostname: "{{ kvm_vm_name }}"

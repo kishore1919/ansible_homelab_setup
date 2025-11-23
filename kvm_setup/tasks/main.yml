@@ -1,49 +1,44 @@
 ---
-- name: Create multiple KVM VMs using community.libvirt.virt
-  collections:
-    - community.libvirt
+- name: Ensure image pool dir exists
+  ansible.builtin.file:
+    path: "{{ kvm_image_pool }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
 
-  tasks:
-    - name: Ensure image pool dir exists
-      ansible.builtin.file:
-        path: "{{ kvm_image_pool }}"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
+- name: Download Ubuntu cloud image if not present
+  ansible.builtin.get_url:
+    url: "{{ kvm_image_url }}"
+    dest: "{{ kvm_image_pool }}/{{ base_image_name }}.img"
+    checksum: "{{ kvm_image_checksum }}"
+    mode: '0644'
 
-    - name: Download base KVM image if not present
-      ansible.builtin.get_url:
-        url: "{{ kvm_image_url }}"
-        dest: "{{ kvm_image_pool }}"
-        url: "{{ kvm_image_url }}"    
-        destination: "{{ kvm_image_pool }}"
-        checksum: "sha256:{{ base_image_sha }}"
-      register: download_image
+- name: Create qcow2 overlay disk for this VM
+  ansible.builtin.command:
+    cmd: >
+      qemu-img create -f qcow2 -F qcow2
+      -b {{ kvm_image_pool }}/{{ base_image_name }}.img
+      {{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2
+      {{ vm_disk_size }}
+    creates: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
 
-    - name: convert iso to qcow2
-      ansible.builtin.command: >
-        qemu-img convert -O qcow2
-        {{ kvm_image_pool }}/{{ base_image_name }}.iso
-        {{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2
-      creates: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
-      when: download_image.changed | default(false)
-
-    - name: Create vm from the image
-      community.libvirt.virt:
-        name: "{{ kvm_vm_name }}"
-        pool: "{{ kvm_image_pool }}"
-        base_image: "{{ base_image_name }}.qcow2"
-        ram_mb: "{{ vm_ram_mb }}"
-        vcpus: "{{ vm_vcpus }}"
-        disk_size: "{{ vm_disk_size }}"
-        os_variant: "{{ os_variant }}"
-        network: "{{ network }}"
-        cpu_model: "{{ cpu_model }}"
-        state: present
-
-    - name: Start the VM
-      community.libvirt.virt:
-        name: "{{ kvm_vm_name }}"
-        state: running 
-
+- name: Create and start VM using virt_install (no XML)
+  community.libvirt.virt_install:
+    name: "{{ kvm_vm_name }}"
+    memory: "{{ vm_ram_mb }}"
+    vcpus: "{{ vm_vcpus }}"
+    disks:
+      - path: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
+    osinfo:
+      name: "{{ os_variant }}"
+    import: true
+    networks:
+      - network: "{{ network }}"
+    graphics:
+      type: vnc
+      listen: 127.0.0.1
+    cpu:
+      model: "{{ cpu_model }}"
+    user_data: "{{ user_data }}"
+    meta_data: "{{ meta_data }}"
