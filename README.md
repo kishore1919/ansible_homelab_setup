@@ -246,18 +246,6 @@ Both roles are designed to be idempotent:
     └── README.md                    # KVM role documentation
 ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project uses the MIT-0 License. See individual role files for specific licensing terms.
-
 ---
 
 **Happy Homelabbing! 🏠✨**
