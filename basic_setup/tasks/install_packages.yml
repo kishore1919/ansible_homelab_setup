@@ -31,7 +31,6 @@
 
 
 - name: Wait for apt locks to be released
-  become: yes
   shell: |
     while fuser /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock >/dev/null 2>&1; do
       sleep 5
