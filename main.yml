@@ -2,12 +2,14 @@
 - name: Basic Setup Role
   hosts: all
   become: yes
+  gather_facts: yes
   roles:
     - basic_setup
 
 - name: KVM Setup Role
-  hosts: gcp_workers
+  hosts: gcp_server
   become: yes
+  gather_facts: no
   collections:
     - community.libvirt
   roles:

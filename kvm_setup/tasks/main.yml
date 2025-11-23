@@ -11,8 +11,6 @@
   ansible.builtin.get_url:
     url: "{{ kvm_image_url }}"
     dest: "{{ kvm_image_pool }}/{{ base_image_name }}.img"
-    checksum: "{{ kvm_image_checksum }}"
-    mode: '0644'
 
 - name: Create qcow2 overlay disk for this VM
   ansible.builtin.command:
@@ -40,5 +38,5 @@
       listen: 127.0.0.1
     cpu:
       model: "{{ cpu_model }}"
-    user_data: "{{ user_data }}"
-    meta_data: "{{ meta_data }}"
+    # user_data: "{{ user_data }}"
+    # meta_data: "{{ meta_data }}"

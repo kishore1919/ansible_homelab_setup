@@ -1,7 +1,43 @@
 ---
+
 - name: apt update
+  become: yes
   ansible.builtin.apt:
     update_cache: yes
+    cache_valid_time: 3600
+
+- name: Disable unattended upgrades
+  become: yes
+  block:
+
+    - name: Stop unattended-upgrades service
+      ansible.builtin.systemd:
+        name: unattended-upgrades
+        state: stopped
+        enabled: no
+        masked: yes
+
+    - name: Disable apt-daily services and timers
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+        masked: yes
+      loop:
+        - apt-daily.service
+        - apt-daily.timer
+        - apt-daily-upgrade.service
+        - apt-daily-upgrade.timer
+
+
+- name: Wait for apt locks to be released
+  become: yes
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock >/dev/null 2>&1; do
+      sleep 5
+    done
+  changed_when: false
+
 
 - name: Install prerequisites
   ansible.builtin.apt:
@@ -15,23 +51,9 @@
       - curl
       - gnupg
       - lsb-release
+      - python3-libvirt
+      - python3-lxml
     state: present
-
-- name: Add Docker GPG key
-  ansible.builtin.get_url:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    dest: /etc/apt/keyrings/docker.asc
-    mode: '0644'
-
-- name: Add Docker repository
-  ansible.builtin.apt_repository:
-    repo: "deb [arch={{ ansible_architecture }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-    state: present
-    filename: docker
-
-- name: apt update after Docker repo
-  ansible.builtin.apt:
-    update_cache: yes
 
 - name: Install Docker packages
   ansible.builtin.apt:
