@@ -1,0 +1,9 @@
+---
+# Helper: Add all VMs from a single group (passed as `item_group` from the parent include)
+- name: 'Build VM entries for group {{ item_group.key }}'
+  ansible.builtin.set_fact:
+    kvm_vm_list: "{{ kvm_vm_list | default([]) + [ {'group': item_group.key, 'name': vm_item.key, 'definition': vm_item.value } ] }}"
+  loop: "{{ item_group.value | dict2items }}"
+  loop_control:
+    loop_var: vm_item
+  when: item_group.value | length > 0

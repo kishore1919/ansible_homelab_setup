@@ -20,6 +20,7 @@
       {{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2
       {{ vm_disk_size }}
     creates: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
+  when: kvm_vm_list is not defined
 
 - name: Create and start VM using virt_install (no XML)
   community.libvirt.virt_install:
@@ -40,3 +41,48 @@
       model: "{{ cpu_model }}"
     # user_data: "{{ user_data }}"
     # meta_data: "{{ meta_data }}"
+  when: kvm_vm_list is not defined
+
+- name: 'Build VM list from sd-cloud YAML'
+  ansible.builtin.include_tasks:
+    file: build_vm_list.yml
+
+- name: 'Preflight: Check qemu-img and virt-install are available'
+  block:
+    - name: 'Check qemu-img exists'
+      ansible.builtin.command:
+        cmd: 'which qemu-img'
+      register: qemu_img_check
+      failed_when: qemu_img_check.rc != 0
+
+    - name: 'Check virt-install exists'
+      ansible.builtin.command:
+        cmd: 'which virt-install'
+      register: virt_install_check
+      failed_when: virt_install_check.rc != 0
+
+    - name: 'Check libvirtd service is active'
+          - name: 'Check if any image_src uses gs:// (and if gsutil needed)'
+            ansible.builtin.set_fact:
+              gs_images_present: "{{ (kvm_vm_list | default([])) | selectattr('definition.image_src','defined') | selectattr('definition.image_src','search','^gs://') | list | length > 0 }}"
+
+          - name: 'If gs images present: check gsutil is installed'
+            ansible.builtin.command:
+              cmd: 'which gsutil'
+            register: gsutil_installed
+            failed_when: gsutil_installed.rc != 0
+            when: gs_images_present | default(false)
+
+      ansible.builtin.command:
+        cmd: 'systemctl is-active --quiet libvirtd'
+      register: libvirtd_active
+      failed_when: libvirtd_active.rc != 0
+
+
+- name: 'Provision VMs from kvm_vm_list'
+  ansible.builtin.include_tasks:
+    file: create_vm_single.yml
+  loop: "{{ kvm_vm_list }}"
+  loop_control:
+    loop_var: vm
+  when: kvm_vm_list is defined and kvm_vm_list | length > 0

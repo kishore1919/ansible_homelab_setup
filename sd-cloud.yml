@@ -1,0 +1,119 @@
+
+cncloud::custom::vm_data:
+  custom-underlay1:
+    trafficgen2:
+      commands:
+      - 'sudo /sbin/sysctl -w net.ipv4.ip_forward=1'
+      http_path: 'client'
+      http_type: 'http'
+      image_dest: '/var/lib/libvirt/images/trafficgen.img'
+      image_src: 'gs://criterion-images/default-images/trafficgen.qcow2'
+      interfaces:
+        int1:
+          bridge_ip: '2.2.3.254'
+          connected: 'True'
+          intname: 'ens4'
+          ipaddress: '2.2.3.3'
+          netmask: '255.255.255.0'
+      linux_internet_connectivity: 'false'
+      max_int: '4'
+      max_nodes: '25'
+      memory: '1024'
+      name: 'trafficgen'
+      natrules:
+        ssh:
+          host_port: '20000'
+          nat_port: '22'
+      vcpu: '1'
+      vm_info:
+        hostname: 'trafficgen2'
+        overwrite: 'false'
+        password: 'ubuntu'
+        type: 'ubuntu'
+        username: 'ubuntu'
+    trafficgen3:
+      commands:
+      - 'sudo /sbin/sysctl -w net.ipv4.ip_forward=1'
+      http_path: 'client'
+      http_type: 'http'
+      image_dest: '/var/lib/libvirt/images/trafficgen.img'
+      image_src: 'gs://criterion-images/default-images/trafficgen.qcow2'
+      interfaces:
+        int1:
+          bridge_ip: '2.2.3.254'
+          connected: 'True'
+          intname: 'ens4'
+          ipaddress: '2.2.3.1'
+          netmask: '255.255.255.0'
+      linux_internet_connectivity: 'false'
+      max_int: '4'
+      max_nodes: '25'
+      memory: '1024'
+      name: 'trafficgen'
+      natrules:
+        ssh:
+          host_port: '20001'
+          nat_port: '22'
+      vcpu: '1'
+      vm_info:
+        hostname: 'trafficgen3'
+        overwrite: 'false'
+        password: 'ubuntu'
+        type: 'ubuntu'
+        username: 'ubuntu'
+
+
+cncloud::custom::connections:
+  con1:
+    base_ip: ''
+    dest_interface: 'ens4'
+    dest_vm: 'trafficgen3'
+    interface_id: '2'
+    src_interface: 'ens4'
+    src_vm: 'trafficgen2'
+    subnet_length: '0'
+
+
+cncloud::custom::configurations: '{}'
+
+
+cncloud::custom::template_scripts:
+  script1:
+    command: 'ls'
+    description: 'testnew'
+    exit_code:
+    - '0'
+    install_src: 'https://s3-us-west-2.amazonaws.com/sdcloud-scripts/generic/solution.sh'
+    install_type: 'wget'
+    workingdir: '/usr/lib/cncloud/'
+
+
+cncloud::custom::tenantinfo: ''
+
+
+cncloud::custom::commonparams:
+  multi_vm: 'no'
+  net_dev_ops: 'no'
+
+
+cncloud::custom::pov_settings: ''
+
+
+cncloud::custom::service_data:
+  Mcp: 'yes'
+  Wireshark: 'yes'
+  ciscosdwanexim: 'yes'
+  cloudonramp: 'no'
+  cn-exlorer: 'yes'
+  console: 'yes'
+  enterpriseca: 'yes'
+  feature_template: 'no'
+  gitlab: 'yes'
+  gitlab_visual_studio: 'yes'
+  jenkins: 'yes'
+  noVNC: 'yes'
+  nvcl: 'yes'
+  rest_apis: 'no'
+  sdwanapp: 'yes'
+  tcapp: 'no'
+  tcpreplay: 'no'

@@ -249,3 +249,28 @@ Both roles are designed to be idempotent:
 ---
 
 **Happy Homelabbing! 🏠✨**
+
+## Provision from sd-cloud.yml
+
+You can provision multiple VMs using the `sd-cloud.yml` variables (the file contains `cncloud::custom::vm_data`) using the supplied sample playbook:
+
+```bash
+ansible-playbook -i inventory.ini sd-cloud-provision.yml -e @sd-cloud.yml
+```
+
+This will parse the `cncloud::custom::vm_data` entries and create the VMs described in the file.
+
+### Run each role only once by default
+
+To prevent re-running roles every time you execute the playbook, this project uses per-role markers stored on the target hosts in `/var/lib/ansible-homelab-setup/markers`. Each role will only run if its marker file is missing. If you want to force re-run a role, pass `force_reapply=true` when running the playbook:
+
+```bash
+ansible-playbook -i inventory.ini main.yml -e force_reapply=true
+```
+
+Marker files are created automatically after a role runs. To reset a role (force it to run the next time without using `force_reapply`), remove the corresponding file on the target host, e.g.:
+
+```bash
+ssh root@<host> rm /var/lib/ansible-homelab-setup/markers/kvm_setup
+```
+

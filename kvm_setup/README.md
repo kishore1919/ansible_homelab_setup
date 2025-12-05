@@ -35,5 +35,25 @@ Defaults in `defaults/main.yml`.
 ## Notes
 VMs: `{{ kvm_vm_name }}-01.qcow2` etc. Login: ubuntu/ubuntu (SSH/console). Hostnames match names. Password auth enabled via cloud-init.
 
+## Provision from sd-cloud.yml (cncloud::custom::vm_data)
+
+You can use the `sd-cloud.yml` structure to provision multiple VMs defined under the `cncloud::custom::vm_data` mapping. Copy or add the `sd-cloud.yml` variables as a var file and include it at runtime:
+
+```bash
+ansible-playbook -i hosts main.yml -e @sd-cloud.yml
+```
+
+This role will parse the `cncloud::custom::vm_data` structure and create a VM per `trafficgen2`, `trafficgen3` entries found. Make sure to install `gsutil` if your images are provided as `gs://...` URLs, or update image paths to `http(s)`.
+
+### Run once behavior
+
+This role honors the global homelab 'run once' marker files. A marker file is created in `/var/lib/ansible-homelab-setup/markers/kvm_setup` after the role successfully runs; future playbook runs will skip this role unless you pass `force_reapply=true` or remove the marker file.
+
+```bash
+ansible-playbook -i inventory.ini main.yml -e force_reapply=true
+# or to reset the marker on a host:
+ssh root@<host> rm /var/lib/ansible-homelab-setup/markers/kvm_setup
+```
+
 ## License
 MIT-0

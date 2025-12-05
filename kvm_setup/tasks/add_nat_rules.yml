@@ -1,0 +1,40 @@
+---
+# Add NAT rules on the host for VM ports defined in vm.definition.natrules
+# Expect `vm.definition.natrules` to be a mapping of names -> { host_port, nat_port, proto(optional)}
+
+- name: 'Ensure NAT rules list exists'
+  ansible.builtin.set_fact:
+    vm_natrules: "{{ vm.definition.natrules | default({}) }}"
+
+- name: 'Add or verify NAT rule for each entry'
+  block:
+    - name: 'Ensure iptables rule exists - check'
+      ansible.builtin.command:
+        cmd: >-
+          iptables -t nat -C PREROUTING -p {{ (item.value.proto | default('tcp')) }} --dport {{ item.value.host_port }} -j DNAT --to-destination {{ vm_ip }}:{{ item.value.nat_port }}
+      register: check_rule
+      failed_when: false
+
+    - name: 'Add iptables NAT PREROUTING rule'
+      ansible.builtin.command:
+        cmd: >-
+          iptables -t nat -A PREROUTING -p {{ (item.value.proto | default('tcp')) }} --dport {{ item.value.host_port }} -j DNAT --to-destination {{ vm_ip }}:{{ item.value.nat_port }}
+      when: check_rule.rc != 0
+
+    - name: 'Ensure POSTROUTING MASQUERADE for VM IP exists - check'
+      ansible.builtin.command:
+        cmd: >-
+          iptables -t nat -C POSTROUTING -p {{ (item.value.proto | default('tcp')) }} -d {{ vm_ip }} --dport {{ item.value.nat_port }} -j MASQUERADE
+      register: check_masq
+      failed_when: false
+
+    - name: 'Add POSTROUTING MASQUERADE for VM IP'
+      ansible.builtin.command:
+        cmd: >-
+          iptables -t nat -A POSTROUTING -p {{ (item.value.proto | default('tcp')) }} -d {{ vm_ip }} --dport {{ item.value.nat_port }} -j MASQUERADE
+      when: check_masq.rc != 0
+
+  loop: "{{ vm_natrules | dict2items }}"
+  loop_control:
+    loop_var: item
+  when: vm_ip | length > 0

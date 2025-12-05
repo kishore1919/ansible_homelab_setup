@@ -1,0 +1,21 @@
+#cloud-config
+users:
+  - name: {{ vm_info.username | default('ubuntu') }}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /bin/bash
+chpasswd:
+  list: |
+    {{ vm_info.username | default('ubuntu') }}:{{ vm_info.password | default('ubuntu') }}
+  expire: False
+package_update: true
+packages:
+  - qemu-guest-agent
+ssh_pwauth: true
+hostname: {{ vm_info.hostname | default(vm_name) }}
+{% if vm_info.commands is defined %}
+runcmd:
+{% for cmd in vm_info.commands %}
+  - {{ cmd }}
+{% endfor %}
+{% endif %}
