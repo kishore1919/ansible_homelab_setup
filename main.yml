@@ -5,6 +5,7 @@
   gather_facts: yes
   roles:
     - basic_setup
+  when: ansible_distribution == 'Ubuntu
 
 - name: KVM Setup Role
   hosts: gcp_server
@@ -14,3 +15,6 @@
     - community.libvirt
   roles:
     - kvm_setup
+  when: ansible_distribution == 'Ubuntu'
+
+

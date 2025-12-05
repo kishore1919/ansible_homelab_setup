@@ -68,3 +68,22 @@
     name: cockpit
     state: started
     enabled: yes
+
+
+- name: Add user to docker group
+  become: yes
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Install KVM realated packages
+  ansible.builtin.apt:
+    name:
+      - qemu-kvm
+      - libvirt-daemon-system
+      - libvirt-clients
+      - bridge-utils
+      - virtinst
+      - virt-manager
+    state: present
