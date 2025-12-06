@@ -1,26 +1,22 @@
 ---
-# Build a flattened list of VMs from the sd-cloud variable structure
-# Expects external var `cncloud::custom::vm_data` to be present as a map
-
-- name: 'Init kvm_vm_list to empty list if missing'
+# Build VM list from custom-underlay.yaml structure
+- name: Extract VM data from custom-underlay
   ansible.builtin.set_fact:
     kvm_vm_list: []
+  when: cncloud__custom__vm_data is defined
 
-- name: 'Create list of VM groups'
+- name: Process each VM definition
   ansible.builtin.set_fact:
-    _kvm_groups: "{{ (vars['cncloud::custom::vm_data'] | default({})) | dict2items }}"
-
- - name: 'Add VMs from each group to kvm_vm_list'
-  ansible.builtin.include_tasks:
-    file: build_vm_list_group.yml
-  loop: "{{ _kvm_groups }}"
+    kvm_vm_list: "{{ kvm_vm_list + [{
+      'vm_name': item.key,
+      'definition': item.value
+    }] }}"
+  loop: "{{ cncloud__custom__vm_data | dict2items }}"
   loop_control:
-    loop_var: item_group
-  when: _kvm_groups | length > 0
+    label: "{{ item.key }}"
+  when: cncloud__custom__vm_data is defined
 
-- name: 'Normalize kvm_vm_list entries (ensure vm.definition exists)'
-  ansible.builtin.set_fact:
-    kvm_vm_list: "{{ kvm_vm_list | map('combine', {'definition': (item.definition | default({}))}) | list }}"
-  vars:
-    item: "{{ item }}"
+- name: Debug VM list
+  ansible.builtin.debug:
+    var: kvm_vm_list
   when: kvm_vm_list is defined

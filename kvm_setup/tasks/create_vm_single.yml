@@ -1,120 +1,63 @@
 ---
-# Single clean create_vm file (create_vm_single.yml)
-
-- name: 'Set vm base vars'
+# Create single VM from custom-underlay definition
+- name: Set VM facts from definition
   ansible.builtin.set_fact:
-    vm_base_image: "{{ vm.definition.image_dest | default(kvm_image_pool + '/' + base_image_name + '.img') }}"
-    vm_overlay: "{{ kvm_image_pool }}/{{ vm.name }}.qcow2"
-    vm_domain_name: "{{ vm.definition.vm_info.hostname | default(vm.name) }}"
-    vm_memory: "{{ vm.definition.memory | default(vm_ram_mb) | int }}"
-    vm_vcpus: "{{ vm.definition.vcpu | default(vm_vcpus) | int }}"
+    vm_name: "{{ vm.vm_name }}"
+    vm_definition: "{{ vm.definition }}"
+    vm_info: "{{ vm.definition.vm_info | default({}) }}"
+    interfaces: "{{ vm.definition.interfaces | default({}) }}"
+    natrules: "{{ vm.definition.natrules | default({}) }}"
+    image_src: "{{ vm.definition.image_src | default('') }}"
+    image_dest: "{{ vm.definition.image_dest | default('/var/lib/libvirt/images/' + vm_name + '.img') }}"
+    memory: "{{ vm.definition.memory | default('1024') }}"
+    vcpu: "{{ vm.definition.vcpu | default('1') }}"
+    commands: "{{ vm.definition.commands | default([]) }}"
 
-- name: 'Ensure image pool dir exists (per VM)'
+- name: Debug VM facts
+  ansible.builtin.debug:
+    msg: "Creating VM {{ vm_name }} with {{ memory }}MB RAM, {{ vcpu }} vCPU"
+
+- name: Ensure image directory exists
   ansible.builtin.file:
-    path: "{{ kvm_image_pool }}"
+    path: "{{ image_dest | dirname }}"
     state: directory
     owner: root
     group: root
     mode: '0755'
 
-- name: 'Download base image via http/https if image_src defined and is http'
-  ansible.builtin.get_url:
-    url: "{{ vm.definition.image_src }}"
-    dest: "{{ vm_base_image }}"
-  when: vm.definition.image_src is defined and (vm.definition.image_src | string).startswith('http')
-
-- name: 'Download base image via gsutil if image_src is gs://'
-  ansible.builtin.command:
-    cmd: "gsutil cp {{ vm.definition.image_src }} {{ vm_base_image }}"
-  when: vm.definition.image_src is defined and (vm.definition.image_src | string).startswith('gs://')
-  register: gsutil_download
-  failed_when: gsutil_download.rc not in [0,1,2,3]
-
-- name: 'Create qcow2 overlay for VM'
-  ansible.builtin.command:
-    cmd: >-
-      qemu-img create -f qcow2 -F qcow2 -b {{ vm_base_image }} {{ vm_overlay }} {{ vm.definition.disk_size | default(vm_disk_size) }}
-    creates: "{{ vm_overlay }}"
-  args:
-    warn: false
-
-- name: 'Render cloud-init user_data for VM'
-  ansible.builtin.template:
-    src: user_data.yml.j2
-    dest: "{{ kvm_image_pool }}/{{ vm_domain_name }}_user-data.yml"
-  vars:
-    vm_info: "{{ vm.definition.vm_info | default({}) }}"
-    vm_name: "{{ vm.name }}"
-
-- name: 'Render cloud-init meta_data for VM'
-  ansible.builtin.template:
-    src: meta_data.yml.j2
-    dest: "{{ kvm_image_pool }}/{{ vm_domain_name }}_meta-data.yml"
-  vars:
-    vm_info: "{{ vm.definition.vm_info | default({}) }}"
-    vm_name: "{{ vm.name }}"
-
-- name: 'Init virt networks list'
-  ansible.builtin.set_fact:
-    vm_virt_networks: []
-
-- name: 'Build vm_virt_networks from vm.definition.interfaces (if any)'
-  ansible.builtin.set_fact:
-    vm_virt_networks: "{{ vm_virt_networks + [ ( {'bridge': if_item.value.intname} if (if_item.value.intname is defined and if_item.value.intname | length > 0) else {'network': network} ) ] }}"
-  loop: "{{ (vm.definition.interfaces | default({})) | dict2items }}"
-  loop_control:
-    loop_var: if_item
-  when: vm.definition.interfaces is defined
-
-- name: 'Debug VM creation vars (optional)'
-  ansible.builtin.debug:
-    msg: "Creating VM {{ vm_domain_name }} overlay={{ vm_overlay }} base_image={{ vm_base_image }} mem={{ vm_memory }} vcpus={{ vm_vcpus }} networks={{ vm_virt_networks | default([{'network': network}]) }}"
-
-- name: 'Delete and undefine existing domain when overwrite requested'
+- name: Download or copy VM image
   block:
-    - name: 'Check domain exists'
+    - name: Download from Google Cloud Storage if gs:// URL
       ansible.builtin.command:
-        cmd: "virsh dominfo {{ vm_domain_name }}"
-      register: dom_info
-      failed_when: false
+        cmd: "gsutil -m cp {{ image_src }} {{ image_dest }}"
+      when: image_src.startswith('gs://')
 
-    - name: 'Destroy domain if running and overwrite true'
-      ansible.builtin.command:
-        cmd: "virsh destroy {{ vm_domain_name }}"
-      when: dom_info.rc == 0 and (vm.definition.vm_info.overwrite | default(false) | bool)
-      failed_when: false
+- name: Create qcow2 overlay disk
+  ansible.builtin.command:
+    cmd: >
+      qemu-img create -f qcow2
+      -b {{ image_dest }}
+      {{ image_dest | regex_replace('\.img$', '.qcow2') }}
+    creates: "{{ image_dest | regex_replace('\.img$', '.qcow2') }}"
 
-    - name: 'Undefine domain and remove storage if domain exists and overwrite true'
-      ansible.builtin.command:
-        cmd: "virsh undefine {{ vm_domain_name }} --remove-all-storage"
-      when: dom_info.rc == 0 and (vm.definition.vm_info.overwrite | default(false) | bool)
-      failed_when: false
-
-  when: vm.definition.vm_info is defined
-
-- name: 'Create and start VM using virt_install'
+- name: Create VM using virt_install
   community.libvirt.virt_install:
-    name: "{{ vm_domain_name }}"
-    memory: "{{ vm_memory }}"
-    vcpus: "{{ vm_vcpus }}"
+    name: "{{ vm_name }}"
+    memory: "{{ memory }}"
+    vcpus: "{{ vcpu }}"
     disks:
-      - path: "{{ vm_overlay }}"
+      - path: "{{ image_dest | regex_replace('\.img$', '.qcow2') }}"
     osinfo:
-      name: "{{ os_variant }}"
+      name: "ubuntu22.04"
     import: true
-    networks: "{{ vm_virt_networks | default([{'network': network}]) }}"
+    networks:
+      - network: "default"
     graphics:
       type: vnc
       listen: 127.0.0.1
     cpu:
-      model: "{{ cpu_model }}"
-    user_data: "{{ lookup('file', kvm_image_pool + '/' + vm_domain_name + '_user-data.yml') }}"
-    meta_data: "{{ lookup('file', kvm_image_pool + '/' + vm_domain_name + '_meta-data.yml') }}"
-  register: virt_install
+      model: "host-passthrough"
 
-- name: 'Add iptables host NAT rules for VM (if defined)'
-  ansible.builtin.include_tasks:
-    file: add_nat_rules.yml
-  when: vm.definition.natrules is defined
-  vars:
-    vm_ip: "{{ ((vm.definition.interfaces | default({})) | dict2items | first).value.ipaddress | default('') }}"
+- name: Configure NAT rules if defined
+  ansible.builtin.include_tasks: configure_nat.yml
+  when: natrules | length > 0

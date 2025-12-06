@@ -3,8 +3,6 @@
   hosts: all
   become: yes
   gather_facts: yes
-  vars_files:
-    - "{{ custom_underlay_path }}"
   roles:
     - basic_setup
   when: ansible_distribution == 'Ubuntu'
@@ -16,6 +14,6 @@
   collections:
     - community.libvirt
   vars_files:
-    - "{{ custom_underlay_path }}"
+    - "custom-underlay.yaml"
   roles:
     - kvm_setup

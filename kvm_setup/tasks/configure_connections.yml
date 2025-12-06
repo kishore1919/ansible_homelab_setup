@@ -1,0 +1,24 @@
+---
+# Configure network connections between VMs based on custom-underlay connections
+- name: Set connection facts
+  ansible.builtin.set_fact:
+    connections_list: "{{ cncloud__custom__connections | dict2items }}"
+
+- name: Debug connections
+  ansible.builtin.debug:
+    var: connections_list
+  when: connections_list | length > 0
+
+- name: Configure network connections between VMs
+  ansible.builtin.command:
+    cmd: >
+      virsh net-update {{ item.value.src_vm }}
+      add ip-dhcp-host
+      "<host mac='{{ lookup('dig', item.value.src_vm + '.' + ansible_domain) }}'
+      name='{{ item.value.src_vm }}'
+      ip='{{ item.value.src_interface_ip }}'/>"
+      --live --config
+  loop: "{{ connections_list }}"
+  loop_control:
+    label: "Connection: {{ item.value.src_vm }} -> {{ item.value.dest_vm }}"
+  when: connections_list | length > 0

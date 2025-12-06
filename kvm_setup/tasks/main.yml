@@ -1,51 +1,5 @@
 ---
-- name: Ensure image pool dir exists
-  ansible.builtin.file:
-    path: "{{ kvm_image_pool }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
-- name: Download Ubuntu cloud image if not present
-  ansible.builtin.get_url:
-    url: "{{ kvm_image_url }}"
-    dest: "{{ kvm_image_pool }}/{{ base_image_name }}.img"
-
-- name: Create qcow2 overlay disk for this VM
-  ansible.builtin.command:
-    cmd: >
-      qemu-img create -f qcow2 -F qcow2
-      -b {{ kvm_image_pool }}/{{ base_image_name }}.img
-      {{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2
-      {{ vm_disk_size }}
-    creates: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
-  when: kvm_vm_list is not defined
-
-- name: Create and start VM using virt_install (no XML)
-  community.libvirt.virt_install:
-    name: "{{ kvm_vm_name }}"
-    memory: "{{ vm_ram_mb }}"
-    vcpus: "{{ vm_vcpus }}"
-    disks:
-      - path: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
-    osinfo:
-      name: "{{ os_variant }}"
-    import: true
-    networks:
-      - network: "{{ network }}"
-    graphics:
-      type: vnc
-      listen: 127.0.0.1
-    cpu:
-      model: "{{ cpu_model }}"
-    # user_data: "{{ user_data }}"
-    # meta_data: "{{ meta_data }}"
-  when: kvm_vm_list is not defined
-
-- name: 'Build VM list from sd-cloud YAML'
-  ansible.builtin.include_tasks:
-    file: build_vm_list.yml
+# Main tasks for KVM setup adapted for custom-underlay.yaml
 
 - name: 'Preflight: Check qemu-img and virt-install are available'
   block:
@@ -62,22 +16,25 @@
       failed_when: virt_install_check.rc != 0
 
     - name: 'Check libvirtd service is active'
-          - name: 'Check if any image_src uses gs:// (and if gsutil needed)'
-            ansible.builtin.set_fact:
-              gs_images_present: "{{ (kvm_vm_list | default([])) | selectattr('definition.image_src','defined') | selectattr('definition.image_src','search','^gs://') | list | length > 0 }}"
-
-          - name: 'If gs images present: check gsutil is installed'
-            ansible.builtin.command:
-              cmd: 'which gsutil'
-            register: gsutil_installed
-            failed_when: gsutil_installed.rc != 0
-            when: gs_images_present | default(false)
-
       ansible.builtin.command:
         cmd: 'systemctl is-active --quiet libvirtd'
       register: libvirtd_active
       failed_when: libvirtd_active.rc != 0
 
+    - name: 'Check if any image_src uses gs:// (and if gsutil needed)'
+      ansible.builtin.set_fact:
+        gs_images_present: "{{ (cncloud__custom__vm_data | default({})) | dict2items | selectattr('value.image_src','defined') | selectattr('value.image_src','search','^gs://') | list | length > 0 }}"
+
+    - name: 'If gs images present: check gsutil is installed'
+      ansible.builtin.command:
+        cmd: 'which gsutil'
+      register: gsutil_installed
+      failed_when: gsutil_installed.rc != 0
+      when: gs_images_present | default(false)
+
+- name: 'Build VM list from custom-underlay YAML'
+  ansible.builtin.include_tasks:
+    file: build_vm_list.yml
 
 - name: 'Provision VMs from kvm_vm_list'
   ansible.builtin.include_tasks:
@@ -86,3 +43,8 @@
   loop_control:
     loop_var: vm
   when: kvm_vm_list is defined and kvm_vm_list | length > 0
+
+- name: 'Configure connections between VMs if defined'
+  ansible.builtin.include_tasks:
+    file: configure_connections.yml
+  when: cncloud__custom__connections is defined
