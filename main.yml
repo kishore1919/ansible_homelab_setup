@@ -1,15 +1,13 @@
 ---
-# Main playbook that runs roles once and creates per-role marker files to avoid re-running
-# Use 'force_reapply=true' to force roles to run again
-
----
 - name: Basic Setup Role
   hosts: all
   become: yes
   gather_facts: yes
+  vars_files:
+    - "{{ custom_underlay_path }}"
   roles:
     - basic_setup
-  when: ansible_distribution == 'Ubuntu
+  when: ansible_distribution == 'Ubuntu'
 
 - name: KVM Setup Role
   hosts: gcp_server
@@ -17,7 +15,7 @@
   gather_facts: no
   collections:
     - community.libvirt
+  vars_files:
+    - "{{ custom_underlay_path }}"
   roles:
     - kvm_setup
-
-

@@ -4,15 +4,3 @@
 # The path to a YAML file containing VM definitions, potentially from a Puppet/Hiera setup.
 # This is used by the 'kvm_setup' role to load VM data if 'cncloud::custom::vm_data' is not defined elsewhere.
 custom_underlay_path: /etc/puppet/hiera/data/role/custom/custom-underlay.yaml
-
-# Example of how you could define VM data directly in Ansible vars.
-# The 'kvm_setup' role expects this structure for 'cncloud::custom::vm_data'.
-# cncloud::custom::vm_data:
-#   kvm_hosts:
-#     vms:
-#       test-vm-01:
-#         memory: 2048
-#         vcpu: 2
-#         disk_size: 20G
-#         vm_info:
-#           hostname: test-vm-01.example.com
