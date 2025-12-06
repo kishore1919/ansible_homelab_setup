@@ -226,7 +226,7 @@ Both roles are designed to be idempotent:
 ## 📁 Project Structure
 ```
 ├── main.yml                          # Main playbook
-├── inventory.ini                     # Target hosts configuration
+├── sd-cloud.yml                      # VM data configuration
 ├── README.md                         # This file
 ├── basic_setup/                      # Basic system setup role
 │   ├── tasks/
@@ -236,29 +236,21 @@ Both roles are designed to be idempotent:
 │   ├── files/                       # Docker compose files
 │   │   ├── sonarqube-docker-compose.yml
 │   │   ├── n8n-docker-compose.yml
-│   │   └── multi-media-compse.yml
-│   ├── defaults/main.yml            # Default variables
-│   └── vars/main.yml                # Role-specific variables
+│   │   └── multi-media-compose.yml
+│   ├── defaults/                    # Default variables
+│   └── vars/                        # Role-specific variables
 └── kvm_setup/                       # KVM VM creation role
-    ├── tasks/main.yml               # VM creation tasks
-    ├── defaults/main.yml            # Default variables
-    ├── vars/main.yml                # VM configuration variables
+    ├── tasks/                       # VM creation tasks
+    ├── templates/                   # Cloud-init templates
+    ├── defaults/                    # Default variables
+    ├── vars/                        # VM configuration variables
+    ├── inventory.ini                # KVM-specific inventory
     └── README.md                    # KVM role documentation
 ```
 
 ---
 
 **Happy Homelabbing! 🏠✨**
-
-## Provision from sd-cloud.yml
-
-You can provision multiple VMs using the `sd-cloud.yml` variables (the file contains `cncloud::custom::vm_data`) using the supplied sample playbook:
-
-```bash
-ansible-playbook -i inventory.ini sd-cloud-provision.yml -e @sd-cloud.yml
-```
-
-This will parse the `cncloud::custom::vm_data` entries and create the VMs described in the file.
 
 ### Run each role only once by default
 

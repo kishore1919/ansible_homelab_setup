@@ -2,78 +2,6 @@
 # Main playbook that runs roles once and creates per-role marker files to avoid re-running
 # Use 'force_reapply=true' to force roles to run again
 
-- name: Run basic_setup role only once
-  hosts: all
-  become: yes
-  gather_facts: yes
-  when: ansible_distribution == 'Ubuntu'
-  vars:
-    marker_dir: "/var/lib/ansible-homelab-setup/markers"
-    force_reapply: "{{ force_reapply | default(false) }}"
-
-  pre_tasks:
-    - name: Ensure homelab marker folder exists
-      ansible.builtin.file:
-        path: "{{ marker_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Check basic_setup marker
-      ansible.builtin.stat:
-        path: "{{ marker_dir }}/basic_setup"
-      register: basic_setup_marker
-
-  tasks:
-    - name: Run basic_setup role if not marked applied
-      ansible.builtin.include_role:
-        name: basic_setup
-      when: force_reapply | bool or not basic_setup_marker.stat.exists
-
-  post_tasks:
-    - name: Ensure basic_setup marker file exists if role was executed
-      ansible.builtin.file:
-        path: "{{ marker_dir }}/basic_setup"
-        state: touch
-        mode: '0644'
-      when: force_reapply | bool or not basic_setup_marker.stat.exists
-
-
-- name: Run kvm_setup role only once
-  hosts: gcp_server
-  become: yes
-  gather_facts: no
-  collections:
-    - community.libvirt
-  when: ansible_distribution == 'Ubuntu'
-  vars:
-    marker_dir: "/var/lib/ansible-homelab-setup/markers"
-    force_reapply: "{{ force_reapply | default(false) }}"
-
-  pre_tasks:
-    - name: Ensure homelab marker folder exists
-      ansible.builtin.file:
-        path: "{{ marker_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Check kvm_setup marker
-      ansible.builtin.stat:
-        path: "{{ marker_dir }}/kvm_setup"
-      register: kvm_setup_marker
-
-  tasks:
-    - name: Run kvm_setup role if not marked applied
-      ansible.builtin.include_role:
-        name: kvm_setup
-      when: force_reapply | bool or not kvm_setup_marker.stat.exists
-
-  post_tasks:
-    - name: Ensure kvm_setup marker file exists if role was executed
-      ansible.builtin.file:
-        path: "{{ marker_dir }}/kvm_setup"
-        state: touch
-        mode: '0644'
-      when: force_reapply | bool or not kvm_setup_marker.stat.exists
 ---
 - name: Basic Setup Role
   hosts: all
@@ -91,6 +19,5 @@
     - community.libvirt
   roles:
     - kvm_setup
-  when: ansible_distribution == 'Ubuntu'
 
 
