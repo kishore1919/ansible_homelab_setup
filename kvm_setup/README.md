@@ -33,7 +33,7 @@ Defaults in `defaults/main.yml`.
 ```
 
 ## Notes
-VMs: `{{ kvm_vm_name }}-01.qcow2` etc. Login: ubuntu/ubuntu (SSH/console). Hostnames match names. Password auth enabled via cloud-init.
+VMs: `{{ kvm_vm_name }}-01.qcow2` etc. Login: ubuntu/ubuntu (SSH/console). Hostnames match names.
 
 ## Provision from sd-cloud.yml (cncloud::custom::vm_data)
 
