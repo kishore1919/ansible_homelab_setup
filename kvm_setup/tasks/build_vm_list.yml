@@ -1,22 +1,35 @@
 ---
 # Build VM list from custom-underlay.yaml structure
-- name: Extract VM data from custom-underlay
+
+- name: "Initialize kvm_vm_list"
   ansible.builtin.set_fact:
     kvm_vm_list: []
   when: cncloud__custom__vm_data is defined
 
-- name: Process each VM definition
-  ansible.builtin.set_fact:
-    kvm_vm_list: "{{ kvm_vm_list + [{
-      'vm_name': item.key,
-      'definition': item.value
-    }] }}"
-  loop: "{{ cncloud__custom__vm_data | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
+- name: "Build kvm_vm_list from cncloud__custom__vm_data"
+  block:
+    - name: "Process each underlay group"
+      vars:
+        group_name: "{{ item.key }}"
+        group_vms: "{{ item.value }}"
+      block:
+        - name: "Add each VM in {{ group_name }} to kvm_vm_list"
+          ansible.builtin.set_fact:
+            kvm_vm_list: "{{ kvm_vm_list + [{
+              'vm_name': vm_item.key,
+              'underlay': group_name,
+              'definition': vm_item.value
+            }] }}"
+          loop: "{{ group_vms | dict2items }}"
+          loop_control:
+            loop_var: vm_item
+            label: "{{ group_name }}::{{ vm_item.key }}"
+      loop: "{{ cncloud__custom__vm_data | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
   when: cncloud__custom__vm_data is defined
 
-- name: Debug VM list
+- name: "Debug built kvm_vm_list"
   ansible.builtin.debug:
     var: kvm_vm_list
-  when: kvm_vm_list is defined 
+  when: kvm_vm_list is defined

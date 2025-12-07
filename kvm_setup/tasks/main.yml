@@ -1,42 +1,54 @@
 ---
 # Main tasks for KVM setup adapted for custom-underlay.yaml
 
-- name: 'Preflight: Check qemu-img and virt-install are available'
+- name: "Preflight: Validate KVM and related dependencies"
   block:
-    - name: 'Check qemu-img exists'
+    - name: "Check qemu-img exists"
       ansible.builtin.command:
-        cmd: 'which qemu-img'
+        cmd: "which qemu-img"
       register: qemu_img_check
       failed_when: qemu_img_check.rc != 0
 
-    - name: 'Check virt-install exists'
+    - name: "Check virt-install exists"
       ansible.builtin.command:
-        cmd: 'which virt-install'
+        cmd: "which virt-install"
       register: virt_install_check
       failed_when: virt_install_check.rc != 0
 
-    - name: 'Check libvirtd service is active'
+    - name: "Check libvirtd service is active"
       ansible.builtin.command:
-        cmd: 'systemctl is-active --quiet libvirtd'
+        cmd: "systemctl is-active --quiet libvirtd"
       register: libvirtd_active
       failed_when: libvirtd_active.rc != 0
 
-    - name: 'Check if any image_src uses gs:// (and if gsutil needed)'
-      ansible.builtin.set_fact:
-        gs_images_present: "{{ (cncloud__custom__vm_data | default({})) | dict2items | selectattr('value.image_src','defined') | selectattr('value.image_src','search','^gs://') | list | length > 0 }}"
+  tags:
+    - preflight
 
-    - name: 'If gs images present: check gsutil is installed'
-      ansible.builtin.command:
-        cmd: 'which gsutil'
-      register: gsutil_installed
-      failed_when: gsutil_installed.rc != 0
-      when: gs_images_present | default(false)
-
-- name: 'Build VM list from custom-underlay YAML'
+- name: "Build VM list from custom-underlay YAML"
   ansible.builtin.include_tasks:
     file: build_vm_list.yml
 
-- name: 'Provision VMs from kvm_vm_list'
+# Optional: detect if any VM images come from gs:// after kvm_vm_list is built
+- name: "Detect whether any VM image_src uses gs://"
+  ansible.builtin.set_fact:
+    gs_images_present: >-
+      {{ (kvm_vm_list | default([]))
+         | selectattr('definition.image_src', 'defined')
+         | selectattr('definition.image_src', 'search', '^gs://')
+         | list
+         | length > 0 }}
+  when: kvm_vm_list is defined
+
+- name: "If gs images present: check gsutil is installed"
+  ansible.builtin.command:
+    cmd: "which gsutil"
+  register: gsutil_installed
+  failed_when: gsutil_installed.rc != 0
+  when:
+    - kvm_vm_list is defined
+    - gs_images_present | default(false)
+
+- name: "Provision VMs from kvm_vm_list"
   ansible.builtin.include_tasks:
     file: create_vm_single.yml
   loop: "{{ kvm_vm_list }}"
@@ -44,45 +56,7 @@
     loop_var: vm
   when: kvm_vm_list is defined and kvm_vm_list | length > 0
 
-- name: 'Configure connections between VMs if defined'
+- name: "Configure connections between VMs if defined"
   ansible.builtin.include_tasks:
     file: configure_connections.yml
   when: cncloud__custom__connections is defined
-  block:
-    - name: 'Check qemu-img exists'
-      ansible.builtin.command:
-        cmd: 'which qemu-img'
-      register: qemu_img_check
-      failed_when: qemu_img_check.rc != 0
-
-    - name: 'Check virt-install exists'
-      ansible.builtin.command:
-        cmd: 'which virt-install'
-      register: virt_install_check
-      failed_when: virt_install_check.rc != 0
-
-    - name: 'Check libvirtd service is active'
-          - name: 'Check if any image_src uses gs:// (and if gsutil needed)'
-            ansible.builtin.set_fact:
-              gs_images_present: "{{ (kvm_vm_list | default([])) | selectattr('definition.image_src','defined') | selectattr('definition.image_src','search','^gs://') | list | length > 0 }}"
-
-          - name: 'If gs images present: check gsutil is installed'
-            ansible.builtin.command:
-              cmd: 'which gsutil'
-            register: gsutil_installed
-            failed_when: gsutil_installed.rc != 0
-            when: gs_images_present | default(false)
-
-      ansible.builtin.command:
-        cmd: 'systemctl is-active --quiet libvirtd'
-      register: libvirtd_active
-      failed_when: libvirtd_active.rc != 0
-
-
-- name: 'Provision VMs from kvm_vm_list'
-  ansible.builtin.include_tasks:
-    file: create_vm_single.yml
-  loop: "{{ kvm_vm_list }}"
-  loop_control:
-    loop_var: vm
-  when: kvm_vm_list is defined and kvm_vm_list | length > 0
