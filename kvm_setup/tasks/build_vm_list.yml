@@ -19,4 +19,4 @@
 - name: Debug VM list
   ansible.builtin.debug:
     var: kvm_vm_list
-  when: kvm_vm_list is defined
+  when: kvm_vm_list is defined 
