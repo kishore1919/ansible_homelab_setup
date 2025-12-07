@@ -1,6 +1,6 @@
 # KVM VM Provisioning with Ansible
 
-This directory contains Ansible playbooks and tasks for automating KVM virtual machine provisioning based on a custom-underlay YAML configuration.
+This directory contains Ansible tasks for automating KVM virtual machine provisioning based on a custom-underlay YAML configuration.
 
 ## Overview
 
@@ -11,14 +11,14 @@ The system downloads VM images (supporting Google Cloud Storage URLs), converts 
 ```
 kvm_setup/
 ├── defaults/
-│   ├── main.yml
-├── vars/
-│   ├── main.yml
+│   └── main.yml
 ├── tasks/
 │   ├── main.yml
-├── playbooks/
-│   ├── main.yml
-├── README.md
+│   ├── build_vm_list.yml
+│   ├── create_vm_single.yml
+│   ├── configure_nat.yml
+│   └── configure_connections.yml
+└── README.md
 ```
 
 ## Requirements
@@ -27,57 +27,57 @@ kvm_setup/
 - `community.libvirt` collection
 - `become: yes`
 
-## Role Variables
-
-From `vars/main.yml` (high priority, override in playbook):
-- `kvm_image_url`: ISO download URL
-- `kvm_image_pool`: `/var/lib/libvirt/images`
-- `base_image_name`: `jammy-server-cloudimg-amd64`
-- `kvm_image_checksum`: SHA256 for image (update from SHA256SUMS)
-- `kvm_vms_counts`: Number of VMs (1-10 typical)
-- `vm_ram_mb`: 2048, `vm_vcpus`: 2, `vm_disk_size`: "20G"
-- `os_variant`: "ubuntu22.04", `network`: "default"
-
-Defaults in `defaults/main.yml`.
-
 ## Dependencies
 
-- None
+- `gsutil` (if using Google Cloud Storage image sources)
+- `iptables` (for NAT rules)
 
 ## Example Playbook
 
 ```yaml
 - hosts: kvm_hosts
   become: yes
-  roles:
-    - role: kvm_setup
-      kvm_vms_counts: 3
-      vm_ram_mb: 4096
+  tasks:
+    - name: "Include KVM setup"
+      include_role:
+        name: kvm_setup
 ```
 
-## Notes
+## Configuration
 
-VMs: `{{ kvm_vm_name }}-01.qcow2` etc. Login: ubuntu/ubuntu (SSH/console). Hostnames match names.
-
-## Provision from sd-cloud.yml (cncloud::custom::vm_data)
-
-You can use the `sd-cloud.yml` structure to provision multiple VMs defined under the `cncloud::custom::vm_data` mapping. Copy or add the `sd-cloud.yml` variables as a var file and include it at runtime:
+This role uses the `cncloud__custom__vm_data` variable structure to define VMs. You can provide this structure via an external variable file:
 
 ```bash
-ansible-playbook -i hosts main.yml -e @sd-cloud.yml
+ansible-playbook -i inventory.ini main.yml -e @sd-cloud.yml
 ```
 
-This role will parse the `cncloud::custom::vm_data` structure and create a VM per `trafficgen2`, `trafficgen3` entries found. Make sure to install `gsutil` if your images are provided as `gs://...` URLs, or update image paths to `http(s)`.
+The role will parse the `cncloud__custom__vm_data` structure and create a VM per entry found.
 
-### Run once behavior
+## Tasks
 
-This role honors the global homelab 'run once' marker files. A marker file is created in `/var/lib/ansible-homelab-setup/markers/kvm_setup` after the role successfully runs; future playbook runs will skip this role unless you pass `force_reapply=true` or remove the marker file.
+- `build_vm_list.yml`: Builds the list of VMs to create from custom-underlay data
+- `create_vm_single.yml`: Creates a single VM from definition
+- `configure_nat.yml`: Configures NAT rules for VMs (if defined)
+- `configure_connections.yml`: Configures network connections between VMs (if defined)
 
-```bash
-ansible-playbook -i inventory.ini main.yml -e force_reapply=true
-# or to reset the marker on a host:
-ssh root@<host> rm /var/lib/ansible-homelab-setup/markers/kvm_setup
-```
+## Variables
+
+The role currently uses default settings from `defaults/main.yml` (which may need to be updated for KVM-specific defaults).
+
+## Important Notes
+
+- VM images can be sourced from local files, HTTP/HTTPS URLs, or Google Cloud Storage (gs://) URLs
+- Base images are converted to qcow2 format and per-VM overlay disks are created for efficient storage
+- VMs are created with Ubuntu 22.04 OS info by default
+- NAT rules are configured using iptables and saved to `/etc/iptables.rules`
+- Network connections rely on libvirt network configuration
+
+## Issues to Address
+
+- The `defaults/main.yml` file currently contains basic_setup settings and should be updated with KVM-specific defaults
+- The `vars/main.yml` file referenced in the old README does not exist
+- The `configure_connections.yml` task may have incorrect syntax for DHCP host configuration
+- The NAT rules in `configure_nat.yml` may have incorrect destination format
 
 ## License
 

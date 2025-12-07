@@ -32,14 +32,6 @@
       - "RAM: {{ memory }} MB"
       - "vCPUs: {{ vcpu }}"
 
-- name: Ensure image directory exists
-  ansible.builtin.file:
-    path: "{{ image_dest | dirname }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
 # ---------------------------
 # IMAGE DOWNLOAD + CONVERSION
 # ---------------------------
@@ -84,8 +76,6 @@
     vcpus: "{{ vcpu }}"
     disks:
       - path: "{{ vm_disk_path }}"
-    osinfo:
-      name: "ubuntu22.04"
     import: true
     networks:
       - network: "default"
