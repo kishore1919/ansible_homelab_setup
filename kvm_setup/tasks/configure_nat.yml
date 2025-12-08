@@ -1,21 +1,21 @@
 ---
 # Configure NAT rules for VM
+
 - name: Set NAT facts
   ansible.builtin.set_fact:
     nat_rules: "{{ natrules | dict2items }}"
+  when: natrules is defined and natrules | length > 0
 
-- name: Configure NAT rules using iptables
-  ansible.builtin.command:
-    cmd: >
-      iptables -t nat -A PREROUTING
-      -p tcp --dport {{ item.value.host_port }}
-      -j DNAT --to-destination {{ item.value.nat_port }}
+- name: Configure DNAT rules for this VM
+  ansible.builtin.iptables:
+    table: nat
+    chain: PREROUTING
+    protocol: tcp
+    destination_port: "{{ item.value.host_port }}"
+    jump: DNAT
+    to_destination: "{{ interfaces.int1.ipaddress }}:{{ item.value.nat_port }}"
+    state: present
   loop: "{{ nat_rules }}"
   loop_control:
-    label: "NAT rule for port {{ item.value.host_port }} -> {{ item.value.nat_port }}"
-  when: nat_rules | length > 0
-
-- name: Save iptables rules
-  ansible.builtin.command:
-    cmd: iptables-save > /etc/iptables.rules
-  when: nat_rules | length > 0
+    label: "DNAT {{ item.value.host_port }} -> {{ interfaces.int1.ipaddress }}:{{ item.value.nat_port }}"
+  when: nat_rules is defined and nat_rules | length > 0
