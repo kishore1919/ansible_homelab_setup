@@ -1,14 +1,18 @@
 ---
 - name: Basic Setup Role
-  hosts: all
+  hosts: localhost
   become: yes
   gather_facts: yes
   roles:
     - basic_setup
-  when: ansible_distribution == 'Ubuntu'
+  vars:
+    # Define the user that should be added to docker group and other system groups
+    ansible_user: "{{ ansible_user_id | default(ansible_env.USER | default('root')) }}"
+    # Alternative: you can specify a specific username
+    # ansible_user: "your_username"
 
 - name: KVM Setup Role
-  hosts: gcp_server
+  hosts: localhost
   become: yes
   gather_facts: no
   collections:
