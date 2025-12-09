@@ -27,7 +27,7 @@
 
 ---
 - name: Setup Application Framework
-  hosts: all
+  hosts: localhost
   become: yes
   tags: appframework
   roles:
