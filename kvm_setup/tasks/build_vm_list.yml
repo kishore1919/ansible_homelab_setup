@@ -1,60 +1,59 @@
 ---
 # Build VM list from custom-underlay.yaml
 
-- name: "Build kvm_vm_list from custom_underlay groups"
+- name: "Check available configuration sources"
+  ansible.builtin.set_fact:
+    # Determine priority: custom_underlay first, then custom_underlay_vars
+    config_source: >-
+      {%- if custom_underlay is defined -%}
+        custom_underlay
+      {%- elif custom_underlay_vars is defined and 
+            custom_underlay_vars['cncloud::custom::vm_data'] is defined -%}
+        custom_underlay_vars
+      {%- else -%}
+        none
+      {%- endif %}
+  changed_when: false
+
+- name: "Extract from custom_underlay source"
   ansible.builtin.set_fact:
     kvm_vm_list: >-
       {{
-        (custom_underlay | dict2items | selectattr('key', 'match', '^underlay_') | map(attribute='value') | map('extract', ['vms']) | list | sum(start=[]))
-        if custom_underlay is defined and (custom_underlay | dict2items | selectattr('key', 'match', '^underlay_') | list | length > 0)
-        else []
+        custom_underlay | dict2items 
+        | selectattr('key', 'search', '^underlay_')
+        | map(attribute='value.vms')
+        | selectattr('defined')
+        | flatten
       }}
     kvm_vm_source: "custom_underlay"
-  when: custom_underlay is defined
+  when: config_source == "custom_underlay"
+  changed_when: false
 
-- name: "Fallback: Build kvm_vm_list from cncloud__custom__underlay groups"
+- name: "Extract from custom_underlay_vars source"
   ansible.builtin.set_fact:
     kvm_vm_list: >-
-      {{
-        (cncloud__custom__underlay | dict2items | selectattr('key', 'match', '^underlay_') | map(attribute='value') | map('extract', ['vms']) | list | sum(start=[]))
-        if cncloud__custom__underlay is defined and (cncloud__custom__underlay | dict2items | selectattr('key', 'match', '^underlay_') | list | length > 0)
-        else []
-      }}
-    kvm_vm_source: "cncloud__custom__underlay"
-  when:
-    - custom_underlay is not defined
-    - cncloud__custom__underlay is defined
-
-- name: "Extract raw VM data from custom_underlay_vars"
-  ansible.builtin.set_fact:
-    raw_vm_data: "{{ custom_underlay_vars['cncloud::custom::vm_data'] }}"
+      {%- set vms = [] -%}
+      {%- for group in custom_underlay_vars['cncloud::custom::vm_data'].values() -%}
+        {%- for vm_name, definition in group.items() -%}
+          {%- set _ = vms.append({'vm_name': vm_name, 'definition': definition}) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ vms }}
     kvm_vm_source: "custom_underlay_vars"
-  when:
-    - custom_underlay is not defined
-    - cncloud__custom__underlay is not defined
-    - custom_underlay_vars is defined
-    - custom_underlay_vars['cncloud::custom::vm_data'] is defined
+  when: config_source == "custom_underlay_vars"
+  changed_when: false
 
-- name: "Initialize empty kvm_vm_list"
+- name: "Handle no configuration source"
   ansible.builtin.set_fact:
     kvm_vm_list: []
-  when: raw_vm_data is defined
+    kvm_vm_source: "none"
+  when: config_source == "none"
+  changed_when: false
 
-- name: "Build kvm_vm_list from raw_vm_data"
-  ansible.builtin.set_fact:
-    kvm_vm_list: "{{ kvm_vm_list + [{'vm_name': item.key, 'definition': item.value}] }}"
-  loop: "{{ raw_vm_data | dict2items | map(attribute='value') | map('dict2items') | list | sum(start=[]) }}"
-  when: raw_vm_data is defined
-
-- name: "Ensure kvm_vm_list is a list"
-  ansible.builtin.set_fact:
-    kvm_vm_list: "{{ kvm_vm_list | default([]) }}"
-  when: kvm_vm_list is not defined or kvm_vm_list is not iterable
-
-- name: "Debug: Final kvm_vm_list and source used"
+- name: "Debug configuration extraction"
   ansible.builtin.debug:
     msg: >-
-      Source: {{ kvm_vm_source | default('none') }}
-      Final kvm_vm_list: {{ kvm_vm_list | to_nice_yaml }}
-  when: kvm_vm_list is defined
+      Configuration source: {{ config_source }}
+      Extracted {{ kvm_vm_list | default([]) | length }} VM(s)
+      Source variable: {{ kvm_vm_source | default('not set') }}
   changed_when: false
