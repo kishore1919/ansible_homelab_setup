@@ -13,40 +13,29 @@
     state: present
   become: true
 
-- name: "Debug: Check current working directory and file existence"
-  ansible.builtin.shell: "pwd && ls -la custom-underlay.yaml 2>&1 || echo 'File not found'"
-  register: debug_output
-  changed_when: false
-
-- name: "Debug: Show directory structure"
-  ansible.builtin.shell: "find . -name 'custom-underlay.yaml' 2>/dev/null || echo 'No custom-underlay.yaml found'"
-  register: find_output
-  changed_when: false
-
-- name: "Debug: Show output"
-  ansible.builtin.debug:
-    msg: "Current dir: {{ debug_output.stdout }}\nFind result: {{ find_output.stdout }}"
-
-- name: "Debug: Check if custom-underlay.yaml exists at /etc/puppet/hiera/data/role/custom/ and load it"
+- name: "Check if custom-underlay.yaml exists at /etc/puppet/hiera/data/role/custom/ and load it"
   ansible.builtin.include_vars:
     file: "/etc/puppet/hiera/data/role/custom/custom-underlay.yaml"
     name: custom_underlay_vars
   ignore_errors: yes
 
-- name: "Debug: Show loaded variables from custom-underlay.yaml"
+- name: "Debug: Indicate if custom_underlay_vars was loaded"
   ansible.builtin.debug:
-    msg: "Loaded vars: {{ custom_underlay_vars | to_nice_yaml }}"
-  when: custom_underlay_vars is defined
+    msg: "custom_underlay_vars loaded: {{ custom_underlay_vars is defined }}"
+  changed_when: false
 
 - name: "Build VM list from custom-underlay YAML"
   ansible.builtin.include_tasks:
     file: build_vm_list.yml
   tags: build_vm_list
 
-- name: "Debug: Final VM list after build_vm_list.yml"
+- name: "Debug: kvm_vm_list summary"
   ansible.builtin.debug:
-    msg: "Final kvm_vm_list: {{ kvm_vm_list | to_nice_yaml }}"
-  tags: debug_vm_list
+    msg: >-
+      VM list source: {{ kvm_vm_source | default('none') }}
+      VM count: {{ (kvm_vm_list | length) | default(0) }}
+  when: kvm_vm_list is defined
+  changed_when: false
 
 - name: "Provision VMs from kvm_vm_list"
   ansible.builtin.include_tasks:

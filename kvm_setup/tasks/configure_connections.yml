@@ -4,7 +4,7 @@
   ansible.builtin.set_fact:
     connections_list: "{{ cncloud__custom__connections | dict2items }}"
 
-- name: Debug connections
+- name: Debug: Connections summary
   ansible.builtin.debug:
     var: connections_list
   when: connections_list | length > 0

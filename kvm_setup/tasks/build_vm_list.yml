@@ -1,31 +1,6 @@
 ---
 # Build VM list from custom-underlay.yaml
 
-- name: "Debug: Check all available variables for underlay"
-  ansible.builtin.debug:
-    msg: >-
-      Available underlay variables:
-      custom_underlay: {{ custom_underlay is defined }}
-      cncloud__custom__underlay: {{ cncloud__custom__underlay is defined }}
-      custom_underlay_vars: {{ custom_underlay_vars is defined }}
-      kvm_vm_list: {{ kvm_vm_list is defined }}
-  tags: debug_vars
-
-- name: "Debug: Show custom_underlay content"
-  ansible.builtin.debug:
-    msg: "custom_underlay: {{ custom_underlay | to_nice_yaml }}"
-  when: custom_underlay is defined
-
-- name: "Debug: Show cncloud__custom__underlay content"
-  ansible.builtin.debug:
-    msg: "cncloud__custom__underlay: {{ cncloud__custom__underlay | to_nice_yaml }}"
-  when: cncloud__custom__underlay is defined
-
-- name: "Debug: Show custom_underlay_vars content"
-  ansible.builtin.debug:
-    msg: "custom_underlay_vars: {{ custom_underlay_vars | to_nice_yaml }}"
-  when: custom_underlay_vars is defined
-
 - name: "Build kvm_vm_list from custom_underlay groups"
   ansible.builtin.set_fact:
     kvm_vm_list: >-
@@ -34,6 +9,7 @@
         if custom_underlay is defined and (custom_underlay | dict2items | selectattr('key', 'match', '^underlay_') | list | length > 0)
         else []
       }}
+    kvm_vm_source: "custom_underlay"
   when: custom_underlay is defined
 
 - name: "Fallback: Build kvm_vm_list from cncloud__custom__underlay groups"
@@ -44,23 +20,20 @@
         if cncloud__custom__underlay is defined and (cncloud__custom__underlay | dict2items | selectattr('key', 'match', '^underlay_') | list | length > 0)
         else []
       }}
-  when: 
+    kvm_vm_source: "cncloud__custom__underlay"
+  when:
     - custom_underlay is not defined
     - cncloud__custom__underlay is defined
 
 - name: "Extract raw VM data from custom_underlay_vars"
   ansible.builtin.set_fact:
     raw_vm_data: "{{ custom_underlay_vars['cncloud::custom::vm_data'] }}"
-  when: 
+    kvm_vm_source: "custom_underlay_vars"
+  when:
     - custom_underlay is not defined
     - cncloud__custom__underlay is not defined
     - custom_underlay_vars is defined
     - custom_underlay_vars['cncloud::custom::vm_data'] is defined
-
-- name: "Debug: Show raw_vm_data"
-  ansible.builtin.debug:
-    msg: "raw_vm_data: {{ raw_vm_data | to_nice_yaml }}"
-  when: raw_vm_data is defined
 
 - name: "Initialize empty kvm_vm_list"
   ansible.builtin.set_fact:
@@ -73,17 +46,15 @@
   loop: "{{ raw_vm_data | dict2items | map(attribute='value') | map('dict2items') | list | sum(start=[]) }}"
   when: raw_vm_data is defined
 
-- name: "Debug: Show extracted VMs from cncloud::custom::vm_data"
-  ansible.builtin.debug:
-    msg: "Extracted VMs: {{ kvm_vm_list | to_nice_yaml }}"
-  when: kvm_vm_list is defined and kvm_vm_list | length > 0
-
-- name: "Debug: Final kvm_vm_list"
-  ansible.builtin.debug:
-    msg: "Final kvm_vm_list: {{ kvm_vm_list | to_nice_yaml }}"
-  when: kvm_vm_list is defined
-
 - name: "Ensure kvm_vm_list is a list"
   ansible.builtin.set_fact:
     kvm_vm_list: "{{ kvm_vm_list | default([]) }}"
   when: kvm_vm_list is not defined or kvm_vm_list is not iterable
+
+- name: "Debug: Final kvm_vm_list and source used"
+  ansible.builtin.debug:
+    msg: >-
+      Source: {{ kvm_vm_source | default('none') }}
+      Final kvm_vm_list: {{ kvm_vm_list | to_nice_yaml }}
+  when: kvm_vm_list is defined
+  changed_when: false
