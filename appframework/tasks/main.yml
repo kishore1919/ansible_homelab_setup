@@ -58,6 +58,46 @@
     name: docker-compose-plugin
     state: present
 
+- name: Check if compose file exists (single-VM)
+  ansible.builtin.stat:
+    path: "{{ compose_dir }}/{{ 'sdwan-docker-compose.yml' if (vm_data_hash.values() | map('dict2items') | flatten | map(attribute='key') | select('match', '^ciscovmanage') | list | length > 0) else 'base-docker-compose.yml' }}"
+  register: compose_file_stat
+
+- name: Check if addDockerIPtoFacter script exists
+  ansible.builtin.stat:
+    path: "{{ scripts_dir }}/addDockerIPtoFacter.sh"
+  register: docker_ip_script
+
+- name: Check if create_device_list.py exists
+  ansible.builtin.stat:
+    path: "{{ scripts_dir }}/create_device_list.py"
+  register: create_devicelist_script
+
+- name: Check if create_multivm_device_list.py exists
+  ansible.builtin.stat:
+    path: "{{ scripts_dir }}/create_multivm_device_list.py"
+  register: create_multivm_list_script
+
+- name: Check if genEtcHostsFromFacter.py exists
+  ansible.builtin.stat:
+    path: "/opt/reverseproxy/genEtcHostsFromFacter.py"
+  register: gen_hosts_script
+
+- name: Check if addVmanageIpToHostsFile.py exists
+  ansible.builtin.stat:
+    path: "/opt/reverseproxy/addVmanageIpToHostsFile.py"
+  register: addvmanage_script
+
+- name: Check if facter directory exists
+  ansible.builtin.stat:
+    path: /etc/facter/facts.d
+  register: facter_dir
+
+- name: Check if multi-VM compose file exists
+  ansible.builtin.stat:
+    path: "{{ compose_dir }}/multivm-child-docker-compose.yml"
+  register: multivm_compose
+
 - name: Include multi-VM tasks
   ansible.builtin.include_tasks: multivm.yml
   when: multi_vm == 'yes'

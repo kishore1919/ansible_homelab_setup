@@ -35,25 +35,14 @@
   register: prepare_compose
   failed_when: prepare_compose.rc != 0
 
-- name: Check if compose file exists
-  ansible.builtin.stat:
-    path: "{{ compose_dir }}/{{ compose_file }}"
-  register: compose_file_stat
-
 - name: Bring up containers parallely (single-VM) using community.docker.docker_compose_v2
   community.docker.docker_compose_v2:
     project_src: "{{ compose_dir }}"
     files:
       - "{{ compose_file }}"
     state: present
-  when: compose_file_stat.stat.exists
   register: bringup_result
   failed_when: bringup_result is defined and bringup_result.failed | default(false)
-
-- name: Check if addDockerIPtoFacter script exists
-  ansible.builtin.stat:
-    path: "{{ scripts_dir }}/addDockerIPtoFacter.sh"
-  register: docker_ip_script
 
 - name: Add container details to facter directory
   ansible.builtin.shell:
@@ -62,22 +51,12 @@
   register: facter_result
   failed_when: facter_result.rc != 0
 
-- name: Check if create_device_list.py exists
-  ansible.builtin.stat:
-    path: "{{ scripts_dir }}/create_device_list.py"
-  register: create_devicelist_script
-
 - name: Create VM and docker apps to devicelist file
   ansible.builtin.command:
     cmd: "/usr/bin/python3 {{ scripts_dir }}/create_device_list.py"
   when: create_devicelist_script.stat.exists
   register: devicelist_result
   failed_when: devicelist_result.rc != 0
-
-- name: Check if genEtcHostsFromFacter.py exists
-  ansible.builtin.stat:
-    path: "/opt/reverseproxy/genEtcHostsFromFacter.py"
-  register: gen_hosts_script
 
 - name: Add vm_ip vm_name to /etc/hosts file
   ansible.builtin.command:
@@ -86,22 +65,12 @@
   register: hosts_result
   failed_when: hosts_result.rc != 0
 
-- name: Check if addVmanageIpToHostsFile.py exists
-  ansible.builtin.stat:
-    path: "/opt/reverseproxy/addVmanageIpToHostsFile.py"
-  register: addvmanage_script
-
 - name: Add vmanage ip to /etc/hosts file
   ansible.builtin.command:
     cmd: "/usr/bin/python3 /opt/reverseproxy/addVmanageIpToHostsFile.py"
   when: addvmanage_script.stat.exists
   register: vmanage_hosts_result
   failed_when: vmanage_hosts_result.rc != 0
-
-- name: Check if facter directory exists
-  ansible.builtin.stat:
-    path: /etc/facter/facts.d
-  register: facter_dir
 
 - name: Update dockerapps facter
   ansible.builtin.shell:
