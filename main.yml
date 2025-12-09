@@ -3,6 +3,7 @@
   hosts: localhost
   become: yes
   gather_facts: yes
+  tags: basic_setup
   roles:
     - basic_setup
   vars:
@@ -15,6 +16,7 @@
   hosts: localhost
   become: yes
   gather_facts: no
+  tags: kvm_setup
   collections:
     - community.libvirt
   vars_files:
@@ -27,6 +29,7 @@
 - name: Setup Application Framework
   hosts: all
   become: yes
+  tags: appframework
   roles:
     - role: appframework
       vars:
