@@ -1,0 +1,6 @@
+---
+scripts_dir: /opt/scripts
+puppet_files_dir: /usr/share/puppet/modules/cncloud/files
+compose_dir: /opt/compose
+multi_vm: "no"
+vm_data: {}    # Add: default empty vm data to avoid undefined variable errors

@@ -1,0 +1,94 @@
+---
+- name: Prepare required docker-compose files (multi-VM)
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 {{ scripts_dir }}/parse_multivm_child_docker_env.py"
+  register: prepare_compose
+  failed_when: prepare_compose.rc != 0
+
+- name: Check if multi-VM compose file exists
+  ansible.builtin.stat:
+    path: "{{ compose_dir }}/multivm-child-docker-compose.yml"
+  register: multivm_compose
+
+- name: Bring up containers parallely (multi-VM) using community.docker.docker_compose_v2
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_dir }}"
+    files:
+      - multivm-child-docker-compose.yml
+    state: present
+  when: multivm_compose.stat.exists
+  register: bringup_result
+  failed_when: bringup_result is defined and bringup_result.failed | default(false)
+
+- name: Check if addDockerIPtoFacter script exists
+  ansible.builtin.stat:
+    path: "{{ scripts_dir }}/addDockerIPtoFacter.sh"
+  register: docker_ip_script
+
+- name: Add container details to facter directory
+  ansible.builtin.shell:
+    cmd: "{{ scripts_dir }}/addDockerIPtoFacter.sh"
+  when: docker_ip_script.stat.exists and docker_ip_script.stat.executable
+  register: facter_result
+  failed_when: facter_result.rc != 0
+
+- name: Check if create_multivm_device_list.py exists
+  ansible.builtin.stat:
+    path: "{{ scripts_dir }}/create_multivm_device_list.py"
+  register: create_multivm_list_script
+
+- name: Create VM and docker apps to devicelist file
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 {{ scripts_dir }}/create_multivm_device_list.py"
+  when: create_multivm_list_script.stat.exists
+  register: devicelist_result
+  failed_when: devicelist_result.rc != 0
+
+- name: Check if genEtcHostsFromFacter.py exists
+  ansible.builtin.stat:
+    path: "/opt/reverseproxy/genEtcHostsFromFacter.py"
+  register: gen_hosts_script
+
+- name: Add 'vm_ip vm_name' to /etc/hosts file
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 /opt/reverseproxy/genEtcHostsFromFacter.py"
+  when: gen_hosts_script.stat.exists
+  register: hosts_result
+  failed_when: hosts_result.rc != 0
+
+- name: Check if addVmanageIpToHostsFile.py exists
+  ansible.builtin.stat:
+    path: "/opt/reverseproxy/addVmanageIpToHostsFile.py"
+  register: addvmanage_script
+
+- name: Add vmanage ip to /etc/hosts file
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 /opt/reverseproxy/addVmanageIpToHostsFile.py"
+  when: addvmanage_script.stat.exists
+  register: vmanage_hosts_result
+  failed_when: vmanage_hosts_result.rc != 0
+
+- name: Check if facter directory exists
+  ansible.builtin.stat:
+    path: /etc/facter/facts.d
+  register: facter_dir
+
+- name: Update dockerapps facter
+  ansible.builtin.shell:
+    cmd: "echo 'dockerapps=yes' > /etc/facter/facts.d/dockerapps.txt"
+  when: facter_dir.stat.exists and facter_dir.stat.isdir
+  register: dockerapps_facter
+  failed_when: dockerapps_facter.rc != 0
+
+- name: Ensure run-one package is installed
+  ansible.builtin.package:
+    name: run-one
+    state: present
+
+- name: Create cron job to update devices management IP
+  ansible.builtin.cron:
+    name: "update devices management IP and make it static"
+    minute: "*/3"
+    user: root
+    job: "/usr/bin/python3 {{ puppet_files_dir }}/update_management_ip.py 2>&1 | logger"
+    state: present

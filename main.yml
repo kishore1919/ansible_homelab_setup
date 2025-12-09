@@ -21,3 +21,14 @@
     - "custom-underlay.yaml"
   roles:
     - kvm_setup
+
+
+---
+- name: Setup Application Framework
+  hosts: all
+  become: yes
+  roles:
+    - role: appframework
+      vars:
+        multi_vm: "no"  # Change to "yes" for multi-VM setup
+        # vm_data: {}   # Add your VM data here if needed

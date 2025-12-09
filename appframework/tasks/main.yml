@@ -1,0 +1,71 @@
+---
+- name: Check whether add_ssl_to_ports.py exists
+  ansible.builtin.stat:
+    path: "{{ scripts_dir }}/add_ssl_to_ports.py"
+  register: add_ports_script
+
+- name: Add ports to config file
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 {{ scripts_dir }}/add_ssl_to_ports.py"
+  when: add_ports_script.stat.exists
+  register: add_ports_result
+  failed_when: add_ports_result.rc != 0
+
+- name: Ensure devicelist.yaml exists
+  ansible.builtin.copy:
+    content: |
+      ---
+      # Initial device list
+    dest: /opt/reverseproxy/devicelist.yaml
+    owner: root
+    group: root
+    mode: '0644'
+    force: no
+
+- name: Check if CCL script exists
+  ansible.builtin.stat:
+    path: "{{ scripts_dir }}/change_ccldevice_name.sh"
+  register: ccl_script
+
+- name: Change CCL script permission to executable (if present)
+  ansible.builtin.file:
+    path: "{{ scripts_dir }}/change_ccldevice_name.sh"
+    mode: '0755'
+  when: ccl_script.stat.exists
+
+- name: Execute CCL scripts
+  ansible.builtin.shell:
+    cmd: "bash {{ scripts_dir }}/change_ccldevice_name.sh"
+  when: ccl_script.stat.exists and ccl_script.stat.executable
+  register: ccl_result
+  failed_when: ccl_result.rc != 0
+
+- name: Check if static IP script exists
+  ansible.builtin.stat:
+    path: "{{ puppet_files_dir }}/make_ip_static.sh"
+  register: static_ip_script
+
+- name: Ensure compose directory exists
+  ansible.builtin.file:
+    path: "{{ compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure docker compose plugin installed (package check)
+  ansible.builtin.package:
+    name: docker-compose-plugin
+    state: present
+
+- name: Include multi-VM tasks
+  ansible.builtin.include_tasks: multivm.yml
+  when: multi_vm == 'yes'
+
+- name: Include single-VM tasks
+  ansible.builtin.include_tasks: singlevm.yml
+  when: multi_vm != 'yes'
+
+- name: Docker apps setup complete
+  ansible.builtin.debug:
+    msg: "Docker apps have been set up successfully."
