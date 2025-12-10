@@ -15,7 +15,6 @@
   ansible.builtin.copy:
     content: |
       ---
-      # Initial device list
     dest: /opt/reverseproxy/devicelist.yaml
     owner: root
     group: root
