@@ -1,4 +1,10 @@
 ---
+# Package installation tasks for basic system setup
+# This file handles system updates, package installation, and service configuration
+
+# =============================================
+# SYSTEM UPDATE AND CLEANUP
+# =============================================
 
 - name: apt update
   become: yes
@@ -6,6 +12,9 @@
     update_cache: yes
     cache_valid_time: 3600
 
+# =============================================
+# DISABLE AUTOMATIC UPDATES
+# =============================================
 - name: Disable unattended upgrades
   become: yes
   block:

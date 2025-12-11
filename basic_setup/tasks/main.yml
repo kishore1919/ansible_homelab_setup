@@ -1,3 +1,7 @@
 ---
+# Main task file for basic_setup role
+# This file orchestrates the basic system setup process
+
+# Import the package installation tasks
+# This includes system packages, Docker, KVM, and other prerequisites
 - import_tasks: install_packages.yml
-- import_tasks: configure_docker.yml

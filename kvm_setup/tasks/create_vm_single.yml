@@ -1,0 +1,122 @@
+---
+# Create single VM from custom-underlay definition
+
+- name: Set VM name first
+  ansible.builtin.set_fact:
+    vm_name: "{{ vm.vm_name }}"
+
+- name: Set VM facts from definition
+  ansible.builtin.set_fact:
+    vm_definition: "{{ vm.definition }}"
+    vm_info: "{{ vm.definition.vm_info | default({}) }}"
+    interfaces: "{{ vm.definition.interfaces | default({}) }}"
+    natrules: "{{ vm.definition.natrules | default({}) }}"
+    image_src: "{{ vm.definition.image_src | default('') }}"
+    memory: "{{ vm.definition.memory | default('1024') }}"
+    vcpu: "{{ vm.definition.vcpu | default('1') }}"
+    commands: "{{ vm.definition.commands | default([]) }}"
+
+- name: Set OS variant from vm_info
+  ansible.builtin.set_fact:
+    os_variant: >-
+      {%- if vm_info.type == 'ubuntu' -%}
+        ubuntu22.04
+      {%- elif vm_info.type == 'centos' -%}
+        centos-stream9
+      {%- elif vm_info.type == 'debian' -%}
+        debian11
+      {%- else -%}
+        linux2022
+      {%- endif -%}
+
+- name: Derive base image and per-VM disk paths
+  ansible.builtin.set_fact:
+    # image_dest from definition may be .img, but we convert to .qcow2 for storage
+    image_dest: "{{ (vm.definition.image_dest | default('/var/lib/libvirt/images/trafficgen.img')) | regex_replace('\\.img$', '.qcow2') }}"
+    # base_image_path = QCOW2 base image (derived from image_dest)
+    base_image_path: "{{ (vm.definition.image_dest | default('/var/lib/libvirt/images/trafficgen.img')) | regex_replace('\\.img$', '.qcow2') }}"
+    # vm_disk_path = per-VM qcow2 overlay (unique per VM)
+    vm_disk_path: "/var/lib/libvirt/images/{{ vm_name }}.qcow2"
+
+- name: Debug VM facts
+  ansible.builtin.debug:
+    msg:
+      - "Creating VM {{ vm_name }}"
+      - "Image source: {{ image_src }}"
+      - "Base image (qcow2): {{ base_image_path }}"
+      - "VM disk (overlay): {{ vm_disk_path }}"
+      - "OS variant: {{ os_variant }}"
+      - "RAM: {{ memory }} MB"
+      - "vCPUs: {{ vcpu }}"
+
+# ---------------------------
+# IMAGE DOWNLOAD
+# ---------------------------
+
+- name: Download image from Google Cloud Storage if gs:// URL
+  ansible.builtin.command:
+    cmd: "gsutil -m cp {{ image_src }} {{ image_dest }}"
+  args:
+    creates: "{{ image_dest }}"
+  when: image_src is search('^gs://')
+
+# ---------------------------------
+# PER-VM DISK (INDEPENDENT OVERLAY)
+# ---------------------------------
+
+- name: Create per-VM qcow2 overlay disk
+  ansible.builtin.command:
+    cmd: >
+      qemu-img create -f qcow2
+      -b {{ base_image_path }}
+      -F qcow2
+      {{ vm_disk_path }}
+  args:
+    creates: "{{ vm_disk_path }}"
+
+- name: Check if VM already exists in libvirt
+  ansible.builtin.shell: "virsh list --all | grep -w {{ vm_name }}"
+  register: vm_exists
+  failed_when: false
+  changed_when: false
+
+- name: Debug VM existence check
+  ansible.builtin.debug:
+    msg: "VM {{ vm_name }} exists: {{ vm_exists.rc == 0 }}"
+
+# ---------------
+# VM CREATION
+# ---------------
+
+- name: Create VM using virt-install command
+  ansible.builtin.command:
+    cmd: >
+      virt-install --name {{ vm_name }}
+      --osinfo {{ os_variant }}
+      --memory {{ memory }}
+      --vcpus {{ vcpu }}
+      --disk path={{ vm_disk_path }},format=qcow2
+      --import
+      --network network=default
+      --graphics vnc,listen=127.0.0.1
+      --cpu host-passthrough
+      --noautoconsole
+  register: vm_creation_result
+  when: vm_exists.rc != 0
+  changed_when: vm_creation_result.rc == 0
+
+- name: Debug VM creation result
+  ansible.builtin.debug:
+    msg: "VM {{ vm_name }} creation result: {{ vm_creation_result }}"
+  when: vm_creation_result is defined
+
+- name: Start VM if not running
+  ansible.builtin.shell: "virsh start {{ vm_name }}"
+  register: vm_start_result
+  failed_when: false
+  changed_when: "'started' in vm_start_result.stdout or 'started' in vm_start_result.stderr"
+  when: vm_exists.rc == 0
+
+- name: Configure NAT rules if defined
+  ansible.builtin.include_tasks: configure_nat.yml
+  when: natrules | length > 0

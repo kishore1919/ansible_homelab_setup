@@ -1,0 +1,80 @@
+---
+- name: Get VM data from provided variables and fallback to common underlays
+  ansible.builtin.set_fact:
+    # Prefer vm_data provided directly; otherwise, try cncloud defaults or custom_underlay_vars
+    vm_data_hash: >-
+      {{
+        (vm_data | default({}) |
+         combine(cncloud__custom__vm_data | default({}), recursive=True) |
+         combine(custom_underlay_vars['cncloud::custom::vm_data'] | default({}), recursive=True))
+        if (cncloud__custom__vm_data is defined or custom_underlay_vars is defined or vm_data is defined)
+        else (vm_data | default({}))
+      }}
+
+- name: Determine if SD-WAN is enabled
+  ansible.builtin.set_fact:
+    sdwan_enabled: "{{ vm_data_hash.values() | map('dict2items') | flatten | map(attribute='key') | select('match', '^ciscovmanage') | list | length > 0 }}"
+  when: vm_data_hash | length > 0
+
+- name: Set SD-WAN enabled to false if no VM data
+  ansible.builtin.set_fact:
+    sdwan_enabled: false
+  when: vm_data_hash | length == 0
+
+- name: Set compose file based on SD-WAN status
+  ansible.builtin.set_fact:
+    compose_file: "{{ 'sdwan-docker-compose.yml' if sdwan_enabled else 'base-docker-compose.yml' }}"
+
+- name: Display SD-WAN status
+  ansible.builtin.debug:
+    msg: "SD-WAN enabled: {{ sdwan_enabled }}"
+
+- name: Prepare required docker-compose files (single-VM)
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 {{ scripts_dir }}/parse_docker_env.py"
+  register: prepare_compose
+  failed_when: prepare_compose.rc != 0
+
+- name: Bring up containers parallely (single-VM) using community.docker.docker_compose_v2
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_dir }}"
+    files:
+      - "{{ compose_file }}"
+    state: present
+  register: bringup_result
+  failed_when: bringup_result is defined and bringup_result.failed | default(false)
+
+- name: Add container details to facter directory
+  ansible.builtin.shell:
+    cmd: "{{ scripts_dir }}/addDockerIPtoFacter.sh"
+  when: docker_ip_script.stat.exists and docker_ip_script.stat.executable
+  register: facter_result
+  failed_when: facter_result.rc != 0
+
+- name: Create VM and docker apps to devicelist file
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 {{ scripts_dir }}/create_device_list.py"
+  when: create_devicelist_script.stat.exists
+  register: devicelist_result
+  failed_when: devicelist_result.rc != 0
+
+- name: Add vm_ip vm_name to /etc/hosts file
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 /opt/reverseproxy/genEtcHostsFromFacter.py"
+  when: gen_hosts_script.stat.exists
+  register: hosts_result
+  failed_when: hosts_result.rc != 0
+
+- name: Add vmanage ip to /etc/hosts file
+  ansible.builtin.command:
+    cmd: "/usr/bin/python3 /opt/reverseproxy/addVmanageIpToHostsFile.py"
+  when: addvmanage_script.stat.exists
+  register: vmanage_hosts_result
+  failed_when: vmanage_hosts_result.rc != 0
+
+- name: Update dockerapps facter
+  ansible.builtin.shell:
+    cmd: "echo 'dockerapps=yes' > /etc/facter/facts.d/dockerapps.txt"
+  when: facter_dir.stat.exists and facter_dir.stat.isdir
+  register: dockerapps_facter
+  failed_when: dockerapps_facter.rc != 0
