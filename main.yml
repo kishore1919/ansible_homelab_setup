@@ -1,4 +1,10 @@
 ---
+# Main Ansible playbook for homelab setup
+# This playbook orchestrates the three main components: basic system setup, KVM virtualization, and application framework
+
+# =============================================
+# BASIC SETUP ROLE
+# =============================================
 - name: Basic Setup Role
   hosts: localhost
   become: yes
@@ -8,24 +14,31 @@
     - basic_setup
   vars:
     # Define the user that should be added to docker group and other system groups
+    # Uses ansible_user_id if available, otherwise falls back to ansible_env.USER, then 'root'
     ansible_user: "{{ ansible_user_id | default(ansible_env.USER | default('root')) }}"
     # Alternative: you can specify a specific username
     # ansible_user: "your_username"
 
+# =============================================
+# KVM SETUP ROLE
+# =============================================
 - name: KVM Setup Role
   hosts: localhost
   become: yes
   gather_facts: no
   tags: kvm_setup
   collections:
-    - community.libvirt
+    - community.libvirt  # Required for KVM/libvirt management
   vars_files:
-    - "custom-underlay.yaml"
+    - "custom-underlay.yaml"  # VM definitions and configuration
   roles:
     - kvm_setup
 
-
 ---
+
+# =============================================
+# APPLICATION FRAMEWORK ROLE
+# =============================================
 - name: Setup Application Framework
   hosts: localhost
   become: yes

@@ -1,33 +1,47 @@
 ---
 # Main tasks for KVM setup adapted for custom-underlay.yaml
+# This file orchestrates the KVM virtualization setup process
+
+# =============================================
+# INSTALL REQUIRED PACKAGES
+# =============================================
 - name: "Ensure required packages are installed"
   ansible.builtin.package:
     name:
-      - qemu-kvm
-      - libvirt-daemon-system
-      - libvirt-clients
-      - bridge-utils
-      - virtinst
-      - virt-manager
-      - cloud-image-utils
+      - qemu-kvm          # KVM hypervisor
+      - libvirt-daemon-system  # Libvirt daemon
+      - libvirt-clients   # Libvirt client tools
+      - bridge-utils      # Network bridge utilities
+      - virtinst          # Virtual machine installation tools
+      - virt-manager      # Graphical VM management
+      - cloud-image-utils # Cloud image utilities
     state: present
   become: true
 
+# =============================================
+# LOAD VM CONFIGURATION
+# =============================================
 - name: "Check if custom-underlay.yaml exists at /etc/puppet/hiera/data/role/custom/ and load it"
   ansible.builtin.include_vars:
     file: "/etc/puppet/hiera/data/role/custom/custom-underlay.yaml"
     name: custom_underlay_vars
   ignore_errors: yes
+  # Attempt to load VM configuration from Puppet/Hiera structure
+  # This file contains VM definitions for the homelab
 
 - name: "Debug: Indicate if custom_underlay_vars was loaded"
   ansible.builtin.debug:
     msg: "custom_underlay_vars loaded: {{ custom_underlay_vars is defined }}"
   changed_when: false
 
+# =============================================
+# BUILD VM LIST
+# =============================================
 - name: "Build VM list from custom-underlay YAML"
   ansible.builtin.include_tasks:
     file: build_vm_list.yml
   tags: build_vm_list
+  # Parse the VM configuration and create a list of VMs to provision
 
 - name: "Debug: kvm_vm_list summary"
   ansible.builtin.debug:
@@ -37,6 +51,9 @@
   when: kvm_vm_list is defined
   changed_when: false
 
+# =============================================
+# PROVISION VMs
+# =============================================
 - name: "Provision VMs from kvm_vm_list"
   ansible.builtin.include_tasks:
     file: create_vm_single.yml
@@ -44,8 +61,13 @@
   loop_control:
     loop_var: vm
   when: kvm_vm_list is defined and kvm_vm_list | length > 0
+  # Create each VM from the configuration
 
+# =============================================
+# CONFIGURE NETWORK CONNECTIONS
+# =============================================
 - name: "Configure connections between VMs if defined"
   ansible.builtin.include_tasks:
     file: configure_connections.yml
   when: cncloud__custom__connections is defined
+  # Set up network connections between VMs if specified in configuration

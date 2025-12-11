@@ -1,13 +1,29 @@
 #SPDX-License-Identifier: MIT-0
 ---
-# defaults file for basic_setup
+# Default variables for basic_setup role
+# These variables can be overridden in inventory or playbook variables
 
+# =============================================
+# USER MANAGEMENT
+# =============================================
 # Default users to create - list of dicts with name, uid, groups, state etc.
+# Example: basic_setup_users:
+#   - name: "admin"
+#     uid: 1001
+#     groups: ["sudo", "docker"]
+#     state: present
 basic_setup_users: []
 
+# =============================================
+# PACKAGE MANAGEMENT
+# =============================================
 # Default packages to ensure present (apt/yum module will use this list)
+# These packages will be installed in addition to the core packages
 basic_setup_packages: []
 
+# =============================================
+# SYSTEM CONFIGURATION
+# =============================================
 # Default timezone, e.g. "UTC" or "Europe/London"
 basic_setup_timezone: "UTC"
 
@@ -18,9 +34,15 @@ basic_setup_ssh_port: 22
 # Firewall management toggle (false by default so role doesn't require firewall packages)
 basic_setup_manage_firewall: false
 
+# =============================================
+# TIME SYNCHRONIZATION
+# =============================================
 # Add NTP servers so tidy role can ensure time sync works out of the box
 basic_setup_ntp_servers:
   - pool.ntp.org
 
+# =============================================
+# SUDO CONFIGURATION
+# =============================================
 # Ensure sudoers or passwordless sudo setting can be toggled
 basic_setup_allow_passwordless_sudo: false

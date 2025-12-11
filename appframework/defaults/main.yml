@@ -1,6 +1,34 @@
 ---
+# Default variables for application framework role
+# These variables can be overridden in inventory or playbook variables
+
+# =============================================
+# DIRECTORY PATHS
+# =============================================
+# Directory where custom scripts are located
 scripts_dir: /opt/scripts
+
+# Directory where Puppet module files are located
 puppet_files_dir: /usr/share/puppet/modules/cncloud/files
+
+# Directory where Docker Compose files are stored
 compose_dir: /opt/compose
+
+# =============================================
+# DEPLOYMENT CONFIGURATION
+# =============================================
+# Deployment mode: "yes" for multi-VM, "no" for single-VM
 multi_vm: "no"
+
+# VM data structure for application deployment
+# Can be overridden with specific VM configurations
 vm_data: {}    # Add: default empty vm data to avoid undefined variable errors
+
+# =============================================
+# ADDITIONAL CONFIGURATION OPTIONS
+# =============================================
+# Additional variables that could be defined:
+# - docker_network: "homelab_network"
+# - service_ports: [8080, 8443, 8000]
+# - ssl_config: { enabled: true, cert_path: "/etc/ssl/certs" }
+# - monitoring: { enabled: true, prometheus_port: 9090 }

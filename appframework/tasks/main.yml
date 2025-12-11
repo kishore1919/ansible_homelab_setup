@@ -1,8 +1,15 @@
 ---
+# Main tasks for application framework setup
+# This file orchestrates Docker container deployment and service configuration
+
+# =============================================
+# PRE-FLIGHT CHECKS AND SETUP
+# =============================================
 - name: Check whether add_ssl_to_ports.py exists
   ansible.builtin.stat:
     path: "{{ scripts_dir }}/add_ssl_to_ports.py"
   register: add_ports_script
+  # Check for SSL port configuration script
 
 - name: Add ports to config file
   ansible.builtin.command:
@@ -10,6 +17,7 @@
   when: add_ports_script.stat.exists
   register: add_ports_result
   failed_when: add_ports_result.rc != 0
+  # Configure SSL ports if script exists
 
 - name: Ensure devicelist.yaml exists
   ansible.builtin.copy:
@@ -20,17 +28,20 @@
     group: root
     mode: '0644'
     force: no
+  # Create empty device list file for reverse proxy
 
 - name: Check if CCL script exists
   ansible.builtin.stat:
     path: "{{ scripts_dir }}/change_ccldevice_name.sh"
   register: ccl_script
+  # Check for Cisco Cloud device naming script
 
 - name: Change CCL script permission to executable (if present)
   ansible.builtin.file:
     path: "{{ scripts_dir }}/change_ccldevice_name.sh"
     mode: '0755'
   when: ccl_script.stat.exists
+  # Make CCL script executable if found
 
 - name: Execute CCL scripts
   ansible.builtin.shell:
@@ -38,12 +49,17 @@
   when: ccl_script.stat.exists and ccl_script.stat.executable
   register: ccl_result
   failed_when: ccl_result.rc != 0
+  # Run Cisco Cloud device naming script
 
 - name: Check if static IP script exists
   ansible.builtin.stat:
     path: "{{ puppet_files_dir }}/make_ip_static.sh"
   register: static_ip_script
+  # Check for static IP configuration script
 
+# =============================================
+# DIRECTORY AND DEPENDENCY SETUP
+# =============================================
 - name: Ensure compose directory exists
   ansible.builtin.file:
     path: "{{ compose_dir }}"
@@ -51,60 +67,85 @@
     owner: root
     group: root
     mode: '0755'
+  # Create directory for Docker Compose files
 
 - name: Ensure docker compose plugin installed (package check)
   ansible.builtin.package:
     name: docker-compose-plugin
     state: present
+  # Verify Docker Compose v2 plugin is installed
 
+# =============================================
+# COMPOSE FILE DETECTION
+# =============================================
 - name: Check if compose file exists (single-VM)
   ansible.builtin.stat:
     path: "{{ compose_dir }}/{{ 'sdwan-docker-compose.yml' if (vm_data_hash.values() | map('dict2items') | flatten | map(attribute='key') | select('match', '^ciscovmanage') | list | length > 0) else 'base-docker-compose.yml' }}"
   register: compose_file_stat
+  # Detect appropriate compose file based on SD-WAN presence
 
+# =============================================
+# SCRIPT EXISTENCE CHECKS
+# =============================================
 - name: Check if addDockerIPtoFacter script exists
   ansible.builtin.stat:
     path: "{{ scripts_dir }}/addDockerIPtoFacter.sh"
   register: docker_ip_script
+  # Check for Docker IP to Facter script
 
 - name: Check if create_device_list.py exists
   ansible.builtin.stat:
     path: "{{ scripts_dir }}/create_device_list.py"
   register: create_devicelist_script
+  # Check for device list creation script
 
 - name: Check if create_multivm_device_list.py exists
   ansible.builtin.stat:
     path: "{{ scripts_dir }}/create_multivm_device_list.py"
   register: create_multivm_list_script
+  # Check for multi-VM device list creation script
 
 - name: Check if genEtcHostsFromFacter.py exists
   ansible.builtin.stat:
     path: "/opt/reverseproxy/genEtcHostsFromFacter.py"
   register: gen_hosts_script
+  # Check for hosts file generation script
 
 - name: Check if addVmanageIpToHostsFile.py exists
   ansible.builtin.stat:
     path: "/opt/reverseproxy/addVmanageIpToHostsFile.py"
   register: addvmanage_script
+  # Check for vManage IP to hosts file script
 
 - name: Check if facter directory exists
   ansible.builtin.stat:
     path: /etc/facter/facts.d
   register: facter_dir
+  # Check for Facter directory (Puppet facts)
 
 - name: Check if multi-VM compose file exists
   ansible.builtin.stat:
     path: "{{ compose_dir }}/multivm-child-docker-compose.yml"
   register: multivm_compose
+  # Check for multi-VM compose file
 
+# =============================================
+# DEPLOYMENT MODE SELECTION
+# =============================================
 - name: Include multi-VM tasks
   ansible.builtin.include_tasks: multivm.yml
   when: multi_vm == 'yes'
+  # Execute multi-VM deployment workflow
 
 - name: Include single-VM tasks
   ansible.builtin.include_tasks: singlevm.yml
   when: multi_vm != 'yes'
+  # Execute single-VM deployment workflow
 
+# =============================================
+# COMPLETION
+# =============================================
 - name: Docker apps setup complete
   ansible.builtin.debug:
     msg: "Docker apps have been set up successfully."
+  # Confirmation message for successful setup
