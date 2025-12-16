@@ -1,42 +1,73 @@
 ---
-- name: Ensure image pool dir exists
-  ansible.builtin.file:
-    path: "{{ kvm_image_pool }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
+# Main tasks for KVM setup adapted for custom-underlay.yaml
+# This file orchestrates the KVM virtualization setup process
 
-- name: Download Ubuntu cloud image if not present
-  ansible.builtin.get_url:
-    url: "{{ kvm_image_url }}"
-    dest: "{{ kvm_image_pool }}/{{ base_image_name }}.img"
+# =============================================
+# INSTALL REQUIRED PACKAGES
+# =============================================
+- name: "Ensure required packages are installed"
+  ansible.builtin.package:
+    name:
+      - qemu-kvm          # KVM hypervisor
+      - libvirt-daemon-system  # Libvirt daemon
+      - libvirt-clients   # Libvirt client tools
+      - bridge-utils      # Network bridge utilities
+      - virtinst          # Virtual machine installation tools
+      - virt-manager      # Graphical VM management
+      - cloud-image-utils # Cloud image utilities
+    state: present
+  become: true
 
-- name: Create qcow2 overlay disk for this VM
-  ansible.builtin.command:
-    cmd: >
-      qemu-img create -f qcow2 -F qcow2
-      -b {{ kvm_image_pool }}/{{ base_image_name }}.img
-      {{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2
-      {{ vm_disk_size }}
-    creates: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
+# =============================================
+# LOAD VM CONFIGURATION
+# =============================================
+- name: "Check if custom-underlay.yaml exists at /etc/puppet/hiera/data/role/custom/ and load it"
+  ansible.builtin.include_vars:
+    file: "/etc/puppet/hiera/data/role/custom/custom-underlay.yaml"
+    name: custom_underlay_vars
+  ignore_errors: yes
+  # Attempt to load VM configuration from Puppet/Hiera structure
+  # This file contains VM definitions for the homelab
 
-- name: Create and start VM using virt_install (no XML)
-  community.libvirt.virt_install:
-    name: "{{ kvm_vm_name }}"
-    memory: "{{ vm_ram_mb }}"
-    vcpus: "{{ vm_vcpus }}"
-    disks:
-      - path: "{{ kvm_image_pool }}/{{ kvm_vm_name }}.qcow2"
-    osinfo:
-      name: "{{ os_variant }}"
-    import: true
-    networks:
-      - network: "{{ network }}"
-    graphics:
-      type: vnc
-      listen: 127.0.0.1
-    cpu:
-      model: "{{ cpu_model }}"
-    # user_data: "{{ user_data }}"
-    # meta_data: "{{ meta_data }}"
+- name: "Debug: Indicate if custom_underlay_vars was loaded"
+  ansible.builtin.debug:
+    msg: "custom_underlay_vars loaded: {{ custom_underlay_vars is defined }}"
+  changed_when: false
+
+# =============================================
+# BUILD VM LIST
+# =============================================
+- name: "Build VM list from custom-underlay YAML"
+  ansible.builtin.include_tasks:
+    file: build_vm_list.yml
+  tags: build_vm_list
+  # Parse the VM configuration and create a list of VMs to provision
+
+- name: "Debug: kvm_vm_list summary"
+  ansible.builtin.debug:
+    msg: >-
+      VM list source: {{ kvm_vm_source | default('none') }}
+      VM count: {{ (kvm_vm_list | length) | default(0) }}
+  when: kvm_vm_list is defined
+  changed_when: false
+
+# =============================================
+# PROVISION VMs
+# =============================================
+- name: "Provision VMs from kvm_vm_list"
+  ansible.builtin.include_tasks:
+    file: create_vm_single.yml
+  loop: "{{ kvm_vm_list }}"
+  loop_control:
+    loop_var: vm
+  when: kvm_vm_list is defined and kvm_vm_list | length > 0
+  # Create each VM from the configuration
+
+# =============================================
+# CONFIGURE NETWORK CONNECTIONS
+# =============================================
+- name: "Configure connections between VMs if defined"
+  ansible.builtin.include_tasks:
+    file: configure_connections.yml
+  when: cncloud__custom__connections is defined
+  # Set up network connections between VMs if specified in configuration

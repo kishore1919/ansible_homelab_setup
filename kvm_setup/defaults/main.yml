@@ -1,6 +1,21 @@
 ---
-# defaults file for basic_setup
+# Default variables for KVM setup role
+# These variables can be overridden in inventory or playbook variables
+# NOTE: This file currently contains basic_setup settings and should be updated with KVM-specific defaults
 
+# =============================================
+# KVM-SPECIFIC DEFAULTS (TO BE ADDED)
+# =============================================
+# Default KVM configuration settings would go here
+# Example:
+# kvm_default_memory: 2048
+# kvm_default_vcpu: 2
+# kvm_storage_pool: /var/lib/libvirt/images
+# kvm_network_bridge: virbr0
+
+# =============================================
+# LEGACY BASIC_SETUP DEFAULTS (TO BE REMOVED)
+# =============================================
 # Default users to create - list of dicts with name, uid, groups, state etc.
 basic_setup_users: []
 
