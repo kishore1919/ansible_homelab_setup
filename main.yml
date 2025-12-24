@@ -17,4 +17,11 @@
     - kvm_setup
   when: ansible_distribution == 'Ubuntu'
 
+# - name: Docker Setup Role
+#   hosts: docker_hosts
+#   become: yes
+#   gather_facts: yes
+#   roles:
+#     - docker_setup
+#   when: ansible_distribution == 'Ubuntu'
 
